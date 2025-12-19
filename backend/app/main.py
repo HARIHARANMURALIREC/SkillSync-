@@ -16,9 +16,10 @@ app = FastAPI(
 )
 
 # CORS middleware - MUST be added before other middleware
+# Allow all origins for development (mobile apps)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Vite default port
+    allow_origins=["*"],  # Allow all origins for mobile development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

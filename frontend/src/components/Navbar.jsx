@@ -26,7 +26,12 @@ const Navbar = ({ onMenuClick }) => {
                 />
               </svg>
             </button>
-            <div className="hidden lg:block">
+            <div className="hidden lg:flex items-center space-x-4">
+              <img 
+                src="/logo.png" 
+                alt="SkillSync Logo" 
+                className="h-20 w-20 object-contain"
+              />
               <h1 className="text-xl font-bold text-gray-900">SkillSync</h1>
             </div>
           </div>
