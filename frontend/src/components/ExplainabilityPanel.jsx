@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
-const ExplainabilityPanel = ({ explanations, title = "Why this recommendation?" }) => {
+const ExplainabilityPanel = ({ explanations, title = 'Why this recommendation?' }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!explanations || explanations.length === 0) {
@@ -8,35 +9,30 @@ const ExplainabilityPanel = ({ explanations, title = "Why this recommendation?" 
   }
 
   return (
-    <div className="card bg-blue-50 border border-blue-200">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center justify-between text-left"
       >
-        <div className="flex items-center space-x-2">
-          <span className="text-blue-600 text-xl">ℹ️</span>
-          <span className="font-medium text-blue-900">{title}</span>
-        </div>
-        <span className="text-blue-600">
-          {isExpanded ? '▼' : '▶'}
-        </span>
+        <span className="text-sm text-cream">{title}</span>
+        {isExpanded ? (
+          <ChevronDown size={16} className="text-muted" />
+        ) : (
+          <ChevronRight size={16} className="text-muted" />
+        )}
       </button>
-      
+
       {isExpanded && (
-        <div className="mt-4 pt-4 border-t border-blue-200">
-          <ul className="space-y-2">
-            {explanations.map((explanation, index) => (
-              <li key={index} className="flex items-start space-x-2 text-sm text-blue-800">
-                <span className="text-blue-500 mt-1">•</span>
-                <span>{explanation}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <ul className="mt-4 pt-4 border-t border-white/10 space-y-2">
+          {explanations.map((explanation, index) => (
+            <li key={index} className="text-sm text-muted leading-relaxed">
+              {explanation}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
 };
 
 export default ExplainabilityPanel;
-

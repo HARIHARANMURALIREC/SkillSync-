@@ -7,21 +7,49 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: {
-          50: '#f3e5f5',
-          100: '#e1bee7',
-          200: '#ce93d8',
-          300: '#ba68c8',
-          400: '#ab47bc',
-          500: '#9c27b0',
-          600: '#8e24aa',
-          700: '#7b1fa2',
-          800: '#6a1b9a',
-          900: '#4a148c',
+        ink: {
+          DEFAULT: '#0B0C0E',
+          50: '#F4F1EA',
+          100: '#E8E4DA',
+          200: '#C4BDB0',
+          300: '#9A9588',
+          400: '#6E6A62',
+          500: '#3A3D44',
+          600: '#22252B',
+          700: '#1A1C21',
+          800: '#14161A',
+          900: '#0B0C0E',
         },
+        gold: {
+          DEFAULT: '#C8A96A',
+          hover: '#D4BC84',
+          muted: '#8A7344',
+          faint: 'rgba(200, 169, 106, 0.12)',
+        },
+        cream: '#F4F1EA',
+        muted: '#9A9588',
+        surface: '#14161A',
+        primary: {
+          50: '#F4F1EA',
+          100: '#E8E4DA',
+          200: '#C4BDB0',
+          300: '#C8A96A',
+          400: '#C8A96A',
+          500: '#C8A96A',
+          600: '#B89654',
+          700: '#8A7344',
+          800: '#C8A96A',
+          900: '#D4BC84',
+        },
+      },
+      fontFamily: {
+        sans: ['"Instrument Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        serif: ['Newsreader', 'ui-serif', 'Georgia', 'serif'],
+      },
+      boxShadow: {
+        none: 'none',
       },
     },
   },
   plugins: [],
 }
-

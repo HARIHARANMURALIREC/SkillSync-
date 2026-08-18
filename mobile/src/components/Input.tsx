@@ -49,19 +49,19 @@ const styles = StyleSheet.create({
   },
   label: {
     ...theme.typography.bodySmall,
-    color: theme.colors.text.primary,
+    color: theme.colors.muted,
     marginBottom: theme.spacing.xs,
     fontWeight: '500',
   },
   input: {
     ...theme.typography.body,
-    backgroundColor: theme.colors.cardBackground,
+    backgroundColor: theme.colors.ink,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
-    color: theme.colors.text.primary,
+    color: theme.colors.cream,
   },
   inputError: {
     borderColor: theme.colors.error,
@@ -72,4 +72,3 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xs,
   },
 });
-

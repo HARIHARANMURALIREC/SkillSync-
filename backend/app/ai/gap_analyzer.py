@@ -1,153 +1,252 @@
 """
-Custom AI Engine: Skill Gap Analyzer
-Compares user's assessed skills against career role requirements.
+Ollama AI Engine: Skill Gap Analyzer
+
+Career skill targets come from Ollama (cached per career). Gap numbers,
+priority, and explanations are computed locally so the dashboard stays fast.
 """
 
-# Career role skill requirements (target levels 0-10)
-CAREER_ROLE_REQUIREMENTS = {
+from typing import Dict, List, Optional
+
+from fastapi import HTTPException
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.ai.ollama_client import chat_json
+
+_CACHE: Dict[str, object] = {
+    "career_goal": None,
+    "skills_key": None,
+    "requirements": {},
+    "readiness": None,
+    "gaps": None,
+    "gaps_key": None,
+}
+
+_REQUIREMENTS_BY_CAREER: Dict[str, dict] = {}
+
+FALLBACK_REQUIREMENTS = {
     "Software Engineer": {
-        "Python": 8.0,
-        "JavaScript": 7.5,
-        "React": 7.0,
-        "Node.js": 6.5,
-        "Database": 6.0,
-        "System Design": 5.5,
-        "Algorithms": 8.0,
-        "Git": 7.0,
+        "Python": 8.0, "JavaScript": 7.5, "React": 7.0, "Node.js": 6.5,
+        "Database": 6.0, "System Design": 5.5, "Algorithms": 8.0, "Git": 7.0,
     },
     "Data Scientist": {
-        "Python": 9.0,
-        "Machine Learning": 8.5,
-        "Statistics": 8.0,
-        "SQL": 7.5,
-        "Data Visualization": 7.0,
-        "Deep Learning": 7.5,
-        "Pandas": 8.5,
-        "NumPy": 8.0,
+        "Python": 9.0, "Machine Learning": 8.5, "Statistics": 8.0, "SQL": 7.5,
+        "Data Visualization": 7.0, "Deep Learning": 7.5, "Pandas": 8.5, "NumPy": 8.0,
     },
     "Frontend Developer": {
-        "JavaScript": 8.5,
-        "React": 9.0,
-        "TypeScript": 7.5,
-        "CSS": 8.0,
-        "HTML": 8.5,
-        "State Management": 7.0,
-        "UI/UX": 6.5,
-        "Testing": 6.0,
+        "JavaScript": 8.5, "React": 9.0, "TypeScript": 7.5, "CSS": 8.0,
+        "HTML": 8.5, "State Management": 7.0, "UI/UX": 6.5, "Testing": 6.0,
     },
     "Backend Developer": {
-        "Python": 8.0,
-        "Node.js": 7.5,
-        "API Design": 8.0,
-        "Database": 8.5,
-        "System Design": 7.5,
-        "DevOps": 6.5,
-        "Security": 7.0,
-        "Caching": 6.0,
+        "Python": 8.0, "Node.js": 7.5, "API Design": 8.0, "Database": 8.5,
+        "System Design": 7.5, "DevOps": 6.5, "Security": 7.0, "Caching": 6.0,
     },
     "Full Stack Developer": {
-        "Python": 7.5,
-        "JavaScript": 8.0,
-        "React": 7.5,
-        "Node.js": 7.0,
-        "Database": 7.5,
-        "API Design": 7.5,
-        "System Design": 6.5,
-        "DevOps": 6.0,
+        "Python": 7.5, "JavaScript": 8.0, "React": 7.5, "Node.js": 7.0,
+        "Database": 7.5, "API Design": 7.5, "System Design": 6.5, "DevOps": 6.0,
     },
 }
 
-def get_career_requirements(career_goal: str) -> dict:
-    """Get target skill levels for a career role."""
-    return CAREER_ROLE_REQUIREMENTS.get(career_goal, {})
+
+class CareerRequirementsResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    requirements: Dict[str, float] = Field(default_factory=dict)
+
+
+def _skills_key(user_skills: dict) -> tuple:
+    return tuple(sorted((k, round(float(v), 2)) for k, v in (user_skills or {}).items()))
+
+
+def get_cached_readiness(user_skills: dict) -> Optional[dict]:
+    if _CACHE["readiness"] and _CACHE["skills_key"] == _skills_key(user_skills):
+        return _CACHE["readiness"]
+    return None
+
+
+def peek_cached_requirements(career_goal: str) -> Optional[dict]:
+    if not career_goal:
+        return None
+    return _REQUIREMENTS_BY_CAREER.get(career_goal)
+
+
+def get_career_requirements(career_goal: str, known_skills: Optional[List[str]] = None) -> dict:
+    """Get target skill levels for a career role (Ollama, cached)."""
+    if not career_goal:
+        return {}
+
+    cached = _REQUIREMENTS_BY_CAREER.get(career_goal)
+    if cached:
+        _CACHE["career_goal"] = career_goal
+        _CACHE["requirements"] = cached
+        return cached
+
+    known = ""
+    if known_skills:
+        known = f" Use only these skill names: {', '.join(known_skills[:12])}."
+
+    try:
+        result = chat_json(
+            system=(
+                "You map careers to skill targets. "
+                "Return compact JSON: {\"requirements\": {\"Skill\": 8.0}}. "
+                "6 to 8 skills, levels 5-10."
+                f"{known}"
+            ),
+            user=f"Career: {career_goal}",
+            schema=CareerRequirementsResult,
+            timeout=25.0,
+            num_predict=220,
+            retries=1,
+        )
+        requirements = {name: float(level) for name, level in result.requirements.items()}
+    except HTTPException:
+        requirements = dict(FALLBACK_REQUIREMENTS.get(career_goal, {}))
+        if not requirements and known_skills:
+            requirements = {skill: 7.0 for skill in known_skills[:8]}
+        if not requirements:
+            requirements = dict(FALLBACK_REQUIREMENTS["Software Engineer"])
+
+    _REQUIREMENTS_BY_CAREER[career_goal] = requirements
+    _CACHE["career_goal"] = career_goal
+    _CACHE["requirements"] = requirements
+    return requirements
+
+
+def _priority_for(gap: float, target_level: float) -> str:
+    if gap > 5.0 or target_level >= 8.0:
+        return "High"
+    if gap > 2.5:
+        return "Medium"
+    return "Low"
+
+
+def _explain_gap(
+    skill_name: str,
+    current_level: float,
+    target_level: float,
+    gap: float,
+    priority: str,
+    career_goal: str,
+) -> List[str]:
+    explanation = []
+    if current_level == 0.0:
+        explanation.append("Not yet assessed")
+    else:
+        percentage = (current_level / target_level) * 100 if target_level else 0
+        explanation.append(f"Current level: {current_level:.1f}/10 ({percentage:.0f}% of target)")
+    explanation.append(f"Target for {career_goal}: {target_level}/10")
+    if gap > 0:
+        explanation.append(f"Gap: {gap:.1f} points")
+    else:
+        explanation.append("Target already achieved")
+    if priority == "High":
+        explanation.append("High priority for this role")
+    return explanation
+
+
+def _readiness_from_requirements(user_skills: dict, requirements: dict) -> dict:
+    if not requirements:
+        return {
+            "score": 0,
+            "completed_skills": 0,
+            "total_skills": 0,
+            "missing_skills": [],
+        }
+
+    total_skills = len(requirements)
+    completed_skills = 0
+    missing_skills = []
+
+    for skill_name, target_level in requirements.items():
+        current_level = float(user_skills.get(skill_name, 0.0))
+        threshold = target_level * 0.8
+        if current_level >= threshold:
+            completed_skills += 1
+        else:
+            missing_skills.append({
+                "skill": skill_name,
+                "current": current_level,
+                "target": target_level,
+                "gap": round(target_level - current_level, 2),
+            })
+
+    return {
+        "score": round((completed_skills / total_skills) * 100, 1) if total_skills else 0,
+        "completed_skills": completed_skills,
+        "total_skills": total_skills,
+        "missing_skills": missing_skills,
+    }
+
 
 def calculate_skill_gaps(user_skills: dict, career_goal: str) -> list:
     """
-    Calculate skill gaps between user's current levels and career requirements.
-    
-    Returns list of gap dictionaries with priority levels and explanations.
+    Calculate skill gaps between the user's current levels and career requirements.
     """
-    requirements = get_career_requirements(career_goal)
-    
-    if not requirements:
+    if not career_goal:
         return []
-    
+
+    cache_key = (career_goal, _skills_key(user_skills or {}))
+    if _CACHE.get("gaps_key") == cache_key and _CACHE.get("gaps") is not None:
+        return _CACHE["gaps"]
+
+    requirements = get_career_requirements(career_goal)
+    user_skills = user_skills or {}
     gaps = []
-    
-    # Calculate gaps for skills in requirements
+
     for skill_name, target_level in requirements.items():
-        current_level = user_skills.get(skill_name, 0.0)
-        gap = target_level - current_level
-        
-        # Determine priority based on gap magnitude and target level
-        if gap > 5.0 or target_level >= 8.0:
-            priority = "High"
-        elif gap > 2.5:
-            priority = "Medium"
-        else:
-            priority = "Low"
-        
-        # Generate explanation for this skill gap
-        explanation = []
-        if current_level == 0.0:
-            explanation.append(f"Not yet assessed")
-        else:
-            percentage = (current_level / target_level) * 100
-            explanation.append(f"Current level: {current_level:.1f}/10 ({percentage:.0f}% of target)")
-            
-        explanation.append(f"Target level required: {target_level}/10")
-        explanation.append(f"Required for {career_goal} role")
-        
-        if gap > 0:
-            explanation.append(f"Gap: {gap:.1f} points to reach target")
-        else:
-            explanation.append("Target already achieved!")
-        
-        if priority == "High":
-            explanation.append("High priority - critical skill for this role")
-        elif priority == "Medium":
-            explanation.append("Medium priority - important skill")
-        
+        current_level = float(user_skills.get(skill_name, 0.0))
+        gap = round(target_level - current_level, 2)
+        priority = _priority_for(gap, target_level)
         gaps.append({
             "skill_name": skill_name,
             "current_level": current_level,
-            "target_level": target_level,
-            "gap": round(gap, 2),
+            "target_level": float(target_level),
+            "gap": gap,
             "priority": priority,
-            "explanation": explanation
+            "explanation": _explain_gap(
+                skill_name, current_level, target_level, gap, priority, career_goal
+            ),
         })
-    
-    # Also include skills user has but aren't in requirements (with low priority)
+
     for skill_name, current_level in user_skills.items():
-        if skill_name not in requirements:
-            gaps.append({
-                "skill_name": skill_name,
-                "current_level": current_level,
-                "target_level": current_level,  # No target gap
-                "gap": 0.0,
-                "priority": "Low",
-                "explanation": [
-                    f"Current level: {current_level:.1f}/10",
-                    "Not required for this career role",
-                    "Bonus skill"
-                ]
-            })
-    
-    # Sort by priority and gap (descending)
+        if skill_name in requirements:
+            continue
+        gaps.append({
+            "skill_name": skill_name,
+            "current_level": float(current_level),
+            "target_level": float(current_level),
+            "gap": 0.0,
+            "priority": "Low",
+            "explanation": [
+                f"Current level: {current_level:.1f}/10",
+                "Not required for this career role",
+                "Bonus skill",
+            ],
+        })
+
     priority_order = {"High": 3, "Medium": 2, "Low": 1}
     gaps.sort(key=lambda x: (priority_order.get(x["priority"], 0), -x["gap"]), reverse=True)
-    
+
+    readiness = _readiness_from_requirements(user_skills, requirements)
+    _CACHE["career_goal"] = career_goal
+    _CACHE["skills_key"] = cache_key[1]
+    _CACHE["requirements"] = requirements
+    _CACHE["readiness"] = readiness
+    _CACHE["gaps_key"] = cache_key
+    _CACHE["gaps"] = gaps
     return gaps
+
 
 def get_skill_gap_summary(gaps: list) -> dict:
     """Generate summary statistics for skill gaps."""
     high_priority = [g for g in gaps if g["priority"] == "High"]
     medium_priority = [g for g in gaps if g["priority"] == "Medium"]
     low_priority = [g for g in gaps if g["priority"] == "Low"]
-    
-    total_gap = sum(g["gap"] for g in gaps if g["gap"] > 0)
-    avg_gap = total_gap / len([g for g in gaps if g["gap"] > 0]) if any(g["gap"] > 0 for g in gaps) else 0
-    
+
+    positive_gaps = [g for g in gaps if g["gap"] > 0]
+    total_gap = sum(g["gap"] for g in positive_gaps)
+    avg_gap = total_gap / len(positive_gaps) if positive_gaps else 0
+
     return {
         "total_skills": len(gaps),
         "high_priority_gaps": len(high_priority),
@@ -156,4 +255,3 @@ def get_skill_gap_summary(gaps: list) -> dict:
         "total_gap_points": round(total_gap, 2),
         "average_gap": round(avg_gap, 2)
     }
-

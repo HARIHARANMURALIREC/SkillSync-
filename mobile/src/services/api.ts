@@ -1,41 +1,54 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// For Android emulator, use 10.0.2.2 instead of localhost
-// For iOS simulator, use localhost
-// For physical devices, use your computer's IP address
-// IMPORTANT: Make sure your phone and computer are on the SAME WiFi network
-const getApiBaseUrl = () => {
-  if (__DEV__) {
-    // Your computer's IP address - UPDATE THIS if your IP changes
-    // Get your IP with: ifconfig | grep "inet " | grep -v 127.0.0.1
-    const COMPUTER_IP = '192.168.2.1';
-    
-    if (Platform.OS === 'android') {
-      // Android emulator uses special IP
-      return 'http://10.0.2.2:8000';
-    }
-    
-    // For iOS: simulator can use localhost, but physical device needs IP
-    // Comment out the localhost line and use IP for physical device
-    // return 'http://localhost:8000'; // iOS Simulator only
-    return `http://${COMPUTER_IP}:8000`; // iOS Physical device
+/** Host Metro uses to serve the JS bundle — same machine as the backend in dev. */
+function getExpoDevHost(): string | null {
+  const hostUri =
+    Constants.expoConfig?.hostUri ??
+    (Constants as { manifest?: { debuggerHost?: string } }).manifest?.debuggerHost ??
+    (Constants as { manifest2?: { extra?: { expoGo?: { debuggerHost?: string } } } }).manifest2
+      ?.extra?.expoGo?.debuggerHost;
+
+  if (!hostUri) {
+    return null;
   }
-  return 'https://your-production-api.com';
+
+  return hostUri.split(':')[0] || null;
+}
+
+export const getApiBaseUrl = () => {
+  if (!__DEV__) {
+    return 'https://your-production-api.com';
+  }
+
+  const expoHost = getExpoDevHost();
+  if (expoHost) {
+    return `http://${expoHost}:8000`;
+  }
+
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:8000';
+  }
+
+  return 'http://localhost:8000';
 };
 
-const API_BASE_URL = getApiBaseUrl();
+export const API_BASE_URL = getApiBaseUrl();
+
+if (__DEV__) {
+  console.log('[SkillSync] API base URL:', API_BASE_URL);
+}
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 30000,
 });
 
-// Add token to requests
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -48,19 +61,15 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Handle token expiration
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
       try {
         await AsyncStorage.removeItem('token');
-        // Navigation will be handled by AuthContext
       } catch (storageError) {
         console.error('Error removing token:', storageError);
       }
@@ -69,5 +78,37 @@ api.interceptors.response.use(
   }
 );
 
-export default api;
+export function getApiErrorMessage(
+  error: any,
+  fallback = 'Something went wrong. Please try again.'
+): string {
+  if (error.code === 'ECONNABORTED') {
+    return `Request timed out. Ensure the backend is running and reachable at ${API_BASE_URL}.`;
+  }
 
+  if (!error.response && (error.message === 'Network Error' || error.code === 'ERR_NETWORK')) {
+    return `Cannot reach the server at ${API_BASE_URL}. Start the backend with \`uvicorn app.main:app --host 0.0.0.0 --port 8000\` and ensure your phone is on the same Wi‑Fi as your computer.`;
+  }
+
+  const status = error.response?.status;
+  const detail = error.response?.data?.detail;
+
+  if (status === 422) {
+    return 'Invalid login request. Please try again.';
+  }
+  if (status === 503) {
+    return (
+      detail ||
+      'Ollama is not running. Start it with `ollama serve`. SkillSync uses the mistral:latest model.'
+    );
+  }
+  if (typeof detail === 'string' && detail) {
+    return detail;
+  }
+  if (Array.isArray(detail) && detail.length > 0) {
+    return detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join(', ') || fallback;
+  }
+  return fallback;
+}
+
+export default api;

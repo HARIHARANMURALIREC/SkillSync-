@@ -32,7 +32,9 @@ export const Button: React.FC<ButtonProps> = ({
       activeOpacity={0.8}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#ffffff' : theme.colors.text.primary} />
+        <ActivityIndicator
+          color={variant === 'primary' ? theme.colors.ink : theme.colors.cream}
+        />
       ) : (
         <Text
           style={[
@@ -57,22 +59,23 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   primary: {
-    backgroundColor: theme.colors.primary[800],
+    backgroundColor: theme.colors.gold.DEFAULT,
   },
   secondary: {
-    backgroundColor: theme.colors.gray[100],
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   buttonText: {
     ...theme.typography.button,
   },
   primaryText: {
-    color: theme.colors.text.inverse,
+    color: theme.colors.ink,
   },
   secondaryText: {
-    color: theme.colors.text.primary,
+    color: theme.colors.cream,
   },
 });
-

@@ -52,6 +52,17 @@ class AssessmentResult(BaseModel):
     level: str
     breakdown: Dict[str, Any]
 
+class SkillInfo(BaseModel):
+    name: str
+    question_count: int
+    recommended: bool
+
+class AssessmentHistoryEntry(BaseModel):
+    skill_name: str
+    score: float
+    level: str
+    created_at: datetime
+
 # Dashboard Schemas
 class SkillGapResponse(BaseModel):
     skill_name: str
@@ -93,6 +104,33 @@ class WeeklyLearningPath(BaseModel):
     status: str
     is_revised: Optional[bool] = False
     explanation: Optional[List[str]] = None
+    completed_resources: Optional[List[int]] = None
+
+class ProgressToggle(BaseModel):
+    week_number: int
+    resource_index: int
+    completed: bool
+
+class ProgressItem(BaseModel):
+    week_number: int
+    resource_index: int
+
+class LearningProgressResponse(BaseModel):
+    completed: List[ProgressItem]
+    week_status: Dict[int, str]
+    overall_pct: float
+    resources_completed: int
+    total_resources: int
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+
+class ChatResponse(BaseModel):
+    reply: str
 
 class LearningPathResponse(BaseModel):
     total_weeks: int

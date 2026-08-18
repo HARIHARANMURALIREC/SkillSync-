@@ -5,7 +5,7 @@ import { theme } from '../theme';
 export const LoadingScreen: React.FC = () => {
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color={theme.colors.primary[800]} />
+      <ActivityIndicator size="large" color={theme.colors.gold.DEFAULT} />
     </View>
   );
 };

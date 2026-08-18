@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import api, { getApiErrorMessage } from '../services/api';
 import { CardSkeleton } from '../components/LoadingSkeleton';
 
 const MCQTest = () => {
@@ -56,7 +56,7 @@ const MCQTest = () => {
       navigate('/assessment-result', { state: { result: response.data } });
     } catch (error) {
       console.error('Failed to submit assessment:', error);
-      alert('Failed to submit assessment. Please try again.');
+      alert(getApiErrorMessage(error, 'Failed to submit assessment. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -68,8 +68,8 @@ const MCQTest = () => {
 
   if (questions.length === 0) {
     return (
-      <div className="card text-center py-12">
-        <p className="text-gray-500">No questions available for this skill.</p>
+      <div className="card text-center py-16">
+        <p className="text-muted">No questions available for this skill.</p>
       </div>
     );
   }
@@ -79,48 +79,47 @@ const MCQTest = () => {
   const answeredCount = Object.keys(answers).length;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-2xl mx-auto">
+      <p className="page-kicker">{skillName}</p>
       <div className="card">
-        {/* Progress Bar */}
-        <div className="mb-6">
-          <div className="flex justify-between text-sm text-gray-600 mb-2">
+        <div className="mb-8">
+          <div className="flex justify-between text-xs uppercase tracking-wider text-muted mb-3">
             <span>Question {currentQuestion + 1} of {questions.length}</span>
             <span>{answeredCount} answered</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-white/10 rounded-full h-1">
             <div
-              className="bg-primary-800 h-2 rounded-full transition-all duration-300"
+              className="bg-gold h-1 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
-        {/* Question */}
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-4">{question.question_text}</h2>
-          <div className="space-y-3">
-            {question.options.map((option) => (
+        <h2 className="font-serif text-2xl mb-6 leading-snug">{question.question_text}</h2>
+        <div className="space-y-3 mb-10">
+          {question.options.map((option) => {
+            const selected = answers[question.id] === option.id;
+            return (
               <button
                 key={option.id}
                 onClick={() => handleAnswer(question.id, option.id)}
-                className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                  answers[question.id] === option.id
-                    ? 'border-primary-800 bg-primary-50'
-                    : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                className={`w-full text-left p-4 rounded-xl border transition-colors ${
+                  selected
+                    ? 'border-gold bg-gold-faint text-cream'
+                    : 'border-white/10 hover:border-white/20 text-cream/90'
                 }`}
               >
-                <span className="font-medium">{option.text}</span>
+                {option.text}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
-        {/* Navigation */}
         <div className="flex justify-between">
           <button
             onClick={handlePrevious}
             disabled={currentQuestion === 0}
-            className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-secondary"
           >
             Previous
           </button>
@@ -128,15 +127,12 @@ const MCQTest = () => {
             <button
               onClick={handleSubmit}
               disabled={submitting || answeredCount < questions.length}
-              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Submitting...' : 'Submit Assessment'}
-            </button>
-          ) : (
-            <button
-              onClick={handleNext}
               className="btn-primary"
             >
+              {submitting ? 'Submitting…' : 'Submit'}
+            </button>
+          ) : (
+            <button onClick={handleNext} className="btn-primary">
               Next
             </button>
           )}
@@ -147,4 +143,3 @@ const MCQTest = () => {
 };
 
 export default MCQTest;
-

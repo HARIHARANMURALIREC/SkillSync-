@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Sidebar from './components/Sidebar';
@@ -12,6 +12,7 @@ import MCQTest from './pages/MCQTest';
 import AssessmentResult from './pages/AssessmentResult';
 import LearningPath from './pages/LearningPath';
 import Profile from './pages/Profile';
+import CoachChat from './pages/CoachChat';
 import { useState } from 'react';
 
 const AppLayout = ({ children }) => {
@@ -23,11 +24,11 @@ const AppLayout = ({ children }) => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-ink">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col lg:ml-64">
+      <div className="flex-1 flex flex-col lg:ml-64 min-w-0">
         <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto px-6 py-8 md:px-10">{children}</main>
       </div>
     </div>
   );
@@ -36,7 +37,7 @@ const AppLayout = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
@@ -101,6 +102,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/coach"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <CoachChat />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
     </AuthProvider>
@@ -108,4 +119,3 @@ function App() {
 }
 
 export default App;
-

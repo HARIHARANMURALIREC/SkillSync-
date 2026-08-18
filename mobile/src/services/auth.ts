@@ -11,10 +11,19 @@ export const authService = {
   },
 
   async login(email: string, password: string) {
-    const response = await api.post('/api/auth/login', {
-      email,
-      password,
-    });
+    // Backend expects OAuth2 form: username + password (not JSON email)
+    const response = await api.post(
+      '/api/auth/login',
+      new URLSearchParams({
+        username: email,
+        password,
+      }).toString(),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      }
+    );
     return response.data;
   },
 
@@ -23,4 +32,3 @@ export const authService = {
     return response.data;
   },
 };
-

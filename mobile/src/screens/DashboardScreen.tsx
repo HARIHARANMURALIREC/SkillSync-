@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { Card } from '../components/Card';
+import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/Button';
 import { LoadingScreen } from '../components/LoadingScreen';
 import api from '../services/api';
 import { theme } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { AssessmentHistoryEntry, SkillInfo } from '../types';
 
 interface DashboardScreenProps {
   navigation: any;
@@ -20,6 +22,12 @@ interface DashboardData {
   progress_summary: {
     total_assessments: number;
     skills_assessed: number;
+    path_completion_pct?: number;
+    resources_completed?: number;
+    total_resources?: number;
+    gap_summary?: {
+      high_priority_gaps?: number;
+    };
   };
   skill_gaps: Array<{
     skill_name: string;
@@ -27,6 +35,7 @@ interface DashboardData {
     target_level: number;
     gap: number;
     priority: string;
+    explanation?: string[];
   }>;
   career_readiness?: {
     score: number;
@@ -38,6 +47,8 @@ interface DashboardData {
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const { user: authUser } = useAuth();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [history, setHistory] = useState<AssessmentHistoryEntry[]>([]);
+  const [assessableSkills, setAssessableSkills] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -47,8 +58,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
 
   const fetchDashboard = async () => {
     try {
-      const response = await api.get('/api/dashboard');
-      setDashboardData(response.data);
+      const [dashboardRes, historyRes, skillsRes] = await Promise.all([
+        api.get('/api/dashboard'),
+        api.get('/api/assessment/history').catch(() => ({ data: [] })),
+        api.get('/api/assessment/skills').catch(() => ({ data: [] })),
+      ]);
+      setDashboardData(dashboardRes.data);
+      setHistory(historyRes.data || []);
+      setAssessableSkills(new Set((skillsRes.data || []).map((s: SkillInfo) => s.name)));
     } catch (error) {
       console.error('Failed to fetch dashboard:', error);
     } finally {
@@ -67,7 +84,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
   }
 
   const hasCareerGoal = dashboardData?.user?.career_goal;
-  const hasAssessments = dashboardData?.progress_summary?.total_assessments > 0;
+  const hasAssessments = (dashboardData?.progress_summary?.total_assessments || 0) > 0;
+  const pathPct = dashboardData?.progress_summary?.path_completion_pct ?? 0;
+  const pathDetail =
+    (dashboardData?.progress_summary?.total_resources || 0) > 0
+      ? `${dashboardData?.progress_summary?.resources_completed || 0}/${dashboardData?.progress_summary?.total_resources} resources`
+      : 'No path yet';
 
   return (
     <ScrollView
@@ -75,19 +97,16 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
       contentContainerStyle={styles.contentContainer}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      {/* Welcome Card */}
-      <Card style={styles.welcomeCard}>
-        <Text style={styles.welcomeTitle}>
-          Welcome back, {dashboardData?.user?.full_name || dashboardData?.user?.email}!
-        </Text>
-        <Text style={styles.welcomeSubtitle}>
-          {hasCareerGoal
-            ? `Your career goal: ${dashboardData?.user.career_goal}`
-            : 'Set your career goal to get personalized learning recommendations'}
-        </Text>
-      </Card>
+      <PageHeader
+        kicker="Overview"
+        title={dashboardData?.user?.full_name || dashboardData?.user?.email || 'Dashboard'}
+        subtitle={
+          hasCareerGoal
+            ? `Working toward ${dashboardData?.user.career_goal}`
+            : 'Set a career goal to personalize recommendations'
+        }
+      />
 
-      {/* Progress Cards */}
       <View style={styles.progressRow}>
         <Card style={styles.progressCard}>
           <Text style={styles.progressLabel}>Assessments</Text>
@@ -103,7 +122,20 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         </Card>
       </View>
 
-      {/* Career Readiness */}
+      <View style={styles.progressRow}>
+        <Card style={styles.progressCard}>
+          <Text style={styles.progressLabel}>Path completion</Text>
+          <Text style={styles.progressValue}>{pathPct}%</Text>
+          <Text style={styles.progressSub}>{pathDetail}</Text>
+        </Card>
+        <Card style={styles.progressCard}>
+          <Text style={styles.progressLabel}>High priority gaps</Text>
+          <Text style={styles.progressValue}>
+            {dashboardData?.progress_summary?.gap_summary?.high_priority_gaps || 0}
+          </Text>
+        </Card>
+      </View>
+
       {dashboardData?.career_readiness && (
         <Card style={styles.readinessCard}>
           <Text style={styles.cardTitle}>Career Readiness</Text>
@@ -126,7 +158,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         </Card>
       )}
 
-      {/* Quick Actions */}
       <Card>
         <Text style={styles.cardTitle}>Quick Actions</Text>
         <View style={styles.actionsContainer}>
@@ -151,14 +182,34 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
               style={styles.actionButton}
             />
           )}
+          <Button
+            title="Ask Your Coach"
+            onPress={() => navigation.navigate('Coach')}
+            variant="secondary"
+            style={styles.actionButton}
+          />
         </View>
       </Card>
 
-      {/* Skill Gaps Preview */}
+      {history.length > 0 && (
+        <Card>
+          <Text style={styles.cardTitle}>Assessment History</Text>
+          {history.slice(-5).reverse().map((entry, index) => (
+            <View key={index} style={styles.historyItem}>
+              <View>
+                <Text style={styles.historySkill}>{entry.skill_name}</Text>
+                <Text style={styles.historyLevel}>{entry.level}</Text>
+              </View>
+              <Text style={styles.historyScore}>{entry.score.toFixed(1)}/10</Text>
+            </View>
+          ))}
+        </Card>
+      )}
+
       {dashboardData?.skill_gaps && dashboardData.skill_gaps.length > 0 && (
         <Card>
           <Text style={styles.cardTitle}>Top Skill Gaps</Text>
-          {dashboardData.skill_gaps.slice(0, 3).map((gap, index) => (
+          {dashboardData.skill_gaps.slice(0, 5).map((gap, index) => (
             <View key={index} style={styles.gapItem}>
               <View style={styles.gapHeader}>
                 <Text style={styles.gapSkill}>{gap.skill_name}</Text>
@@ -175,6 +226,15 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
               <Text style={styles.gapText}>
                 {gap.current_level.toFixed(1)}/10 → {gap.target_level.toFixed(1)}/10
               </Text>
+              {assessableSkills.has(gap.skill_name) && (
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation.navigate('MCQTest', { skillName: gap.skill_name })
+                  }
+                >
+                  <Text style={styles.assessLink}>Take assessment →</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))}
         </Card>
@@ -192,17 +252,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
   },
   welcomeCard: {
-    backgroundColor: theme.colors.primary[800],
     marginBottom: theme.spacing.lg,
-  },
-  welcomeTitle: {
-    ...theme.typography.h2,
-    color: theme.colors.text.inverse,
-    marginBottom: theme.spacing.xs,
-  },
-  welcomeSubtitle: {
-    ...theme.typography.body,
-    color: theme.colors.primary[100],
   },
   progressRow: {
     flexDirection: 'row',
@@ -216,19 +266,26 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     ...theme.typography.bodySmall,
-    color: theme.colors.text.secondary,
+    color: theme.colors.muted,
     marginBottom: theme.spacing.xs,
+    textAlign: 'center',
   },
   progressValue: {
     ...theme.typography.h2,
-    color: theme.colors.primary[800],
+    color: theme.colors.gold.DEFAULT,
+  },
+  progressSub: {
+    ...theme.typography.caption,
+    color: theme.colors.text.secondary,
+    marginTop: 4,
+    textAlign: 'center',
   },
   readinessCard: {
     marginBottom: theme.spacing.lg,
   },
   cardTitle: {
     ...theme.typography.h4,
-    color: theme.colors.text.primary,
+    color: theme.colors.cream,
     marginBottom: theme.spacing.md,
   },
   readinessContent: {
@@ -239,14 +296,16 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: theme.colors.primary[100],
+    backgroundColor: theme.colors.gold.faint,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: theme.spacing.lg,
   },
   readinessScore: {
     ...theme.typography.h1,
-    color: theme.colors.primary[800],
+    color: theme.colors.gold.DEFAULT,
   },
   readinessStats: {
     flex: 1,
@@ -265,6 +324,27 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     width: '100%',
+  },
+  historyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  historySkill: {
+    ...theme.typography.body,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+  },
+  historyLevel: {
+    ...theme.typography.caption,
+    color: theme.colors.text.secondary,
+  },
+  historyScore: {
+    ...theme.typography.h4,
+    color: theme.colors.primary[800],
   },
   gapItem: {
     paddingVertical: theme.spacing.md,
@@ -290,18 +370,28 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.gray[100],
   },
   priorityHigh: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: theme.colors.gold.faint,
+    borderWidth: 1,
+    borderColor: theme.colors.gold.DEFAULT,
   },
   priorityMedium: {
-    backgroundColor: '#fef3c7',
+    backgroundColor: theme.colors.gray[100],
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   priorityText: {
     ...theme.typography.caption,
     fontWeight: '600',
+    color: theme.colors.cream,
   },
   gapText: {
     ...theme.typography.bodySmall,
     color: theme.colors.text.secondary,
   },
+  assessLink: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.gold.DEFAULT,
+    fontWeight: '600',
+    marginTop: theme.spacing.sm,
+  },
 });
-

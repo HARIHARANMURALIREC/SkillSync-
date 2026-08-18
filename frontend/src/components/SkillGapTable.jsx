@@ -1,93 +1,105 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 const SkillGapTable = ({ gaps }) => {
   const [expandedSkill, setExpandedSkill] = useState(null);
+  const [assessableSkills, setAssessableSkills] = useState(new Set());
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    api.get('/api/assessment/skills')
+      .then((res) => {
+        setAssessableSkills(new Set(res.data.map((s) => s.name)));
+      })
+      .catch(() => {});
+  }, []);
 
   if (!gaps || gaps.length === 0) {
     return (
-      <div className="card text-center text-gray-500 py-12">
-        <p>Set your career goal to see skill gaps.</p>
+      <div className="card text-center py-16">
+        <p className="text-muted">Set your career goal to see skill gaps.</p>
       </div>
     );
   }
 
-  const getPriorityColor = (priority) => {
+  const getPriorityClass = (priority) => {
     switch (priority) {
       case 'High':
-        return 'bg-red-100 text-red-800';
+        return 'text-gold border-gold/40';
       case 'Medium':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'text-cream/80 border-white/20';
       case 'Low':
-        return 'bg-green-100 text-green-800';
+        return 'text-muted border-white/10';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'text-muted border-white/10';
     }
   };
 
   return (
     <div className="card overflow-hidden">
-      <h3 className="text-lg font-semibold mb-4">Skill Gaps</h3>
+      <p className="text-xs uppercase tracking-wider text-muted mb-2">Focus</p>
+      <h3 className="font-serif text-2xl mb-6">Skill gaps</h3>
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Skill
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Current
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Target
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Gap
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Priority
-              </th>
+          <thead>
+            <tr className="border-b border-white/10">
+              {['Skill', 'Current', 'Target', 'Gap', 'Priority'].map((h) => (
+                <th
+                  key={h}
+                  className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider"
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody>
             {gaps.map((gap, index) => (
               <React.Fragment key={index}>
-                <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedSkill(expandedSkill === index ? null : index)}>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {gap.skill_name}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {gap.current_level.toFixed(1)}/10
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {gap.target_level.toFixed(1)}/10
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                <tr
+                  className="border-b border-white/5 hover:bg-white/[0.03] cursor-pointer"
+                  onClick={() => setExpandedSkill(expandedSkill === index ? null : index)}
+                >
+                  <td className="px-3 py-4 text-sm text-cream">{gap.skill_name}</td>
+                  <td className="px-3 py-4 text-sm text-muted">{gap.current_level.toFixed(1)}</td>
+                  <td className="px-3 py-4 text-sm text-muted">{gap.target_level.toFixed(1)}</td>
+                  <td className="px-3 py-4 text-sm text-cream">
                     {gap.gap > 0 ? `+${gap.gap.toFixed(1)}` : gap.gap.toFixed(1)}
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityColor(
-                        gap.priority
-                      )}`}
-                    >
+                  <td className="px-3 py-4">
+                    <span className={`px-2 py-0.5 text-xs rounded-full border ${getPriorityClass(gap.priority)}`}>
                       {gap.priority}
                     </span>
                   </td>
                 </tr>
-                {expandedSkill === index && gap.explanation && gap.explanation.length > 0 && (
+                {expandedSkill === index && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-4 bg-blue-50">
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-blue-900 mb-2">Explanation:</p>
-                        <ul className="space-y-1">
-                          {gap.explanation.map((exp, expIdx) => (
-                            <li key={expIdx} className="text-sm text-blue-800 flex items-start">
-                              <span className="text-blue-500 mr-2">•</span>
-                              <span>{exp}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                    <td colSpan={5} className="px-3 py-4 bg-gold-faint">
+                      {gap.explanation && gap.explanation.length > 0 && (
+                        <>
+                          <p className="text-xs uppercase tracking-wider text-gold mb-2">Why this gap</p>
+                          <ul className="space-y-1 mb-4">
+                            {gap.explanation.map((exp, expIdx) => (
+                              <li key={expIdx} className="text-sm text-cream/80">
+                                {exp}
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                      {assessableSkills.has(gap.skill_name) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/assessment/${encodeURIComponent(gap.skill_name)}`);
+                          }}
+                          className="btn-secondary text-sm py-2 px-4"
+                        >
+                          Take assessment
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )}
@@ -101,4 +113,3 @@ const SkillGapTable = ({ gaps }) => {
 };
 
 export default SkillGapTable;
-

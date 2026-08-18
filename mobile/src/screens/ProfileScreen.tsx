@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...theme.typography.h4,
-    color: theme.colors.text.primary,
+    color: theme.colors.cream,
     marginBottom: theme.spacing.lg,
   },
   input: {
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   selectLabel: {
     ...theme.typography.bodySmall,
-    color: theme.colors.text.primary,
+    color: theme.colors.muted,
     marginBottom: theme.spacing.sm,
     fontWeight: '500',
   },

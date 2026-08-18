@@ -1,60 +1,64 @@
-// SkillSync Color Palette - Matching Web App
+// SkillSync — editorial dark theme (matches web app)
 export const colors = {
-  // Primary Purple Theme
+  ink: '#0B0C0E',
+  cream: '#F4F1EA',
+  muted: '#9A9588',
+  surface: '#14161A',
+
+  gold: {
+    DEFAULT: '#C8A96A',
+    hover: '#D4BC84',
+    muted: '#8A7344',
+    faint: 'rgba(200, 169, 106, 0.12)',
+  },
+
+  // Kept for existing component references
   primary: {
-    50: '#f3e5f5',
-    100: '#e1bee7',
-    200: '#ce93d8',
-    300: '#ba68c8',
-    400: '#ab47bc',
-    500: '#9c27b0',
-    600: '#8e24aa',
-    700: '#7b1fa2',
-    800: '#6a1b9a', // Main primary color
-    900: '#4a148c',
+    50: 'rgba(200, 169, 106, 0.12)',
+    100: 'rgba(200, 169, 106, 0.2)',
+    200: '#D4BC84',
+    300: '#C8A96A',
+    400: '#C8A96A',
+    500: '#C8A96A',
+    600: '#B89654',
+    700: '#8A7344',
+    800: '#C8A96A',
+    900: '#D4BC84',
   },
-  
-  // Background colors
-  background: '#f8f5fb', // Light lavender matching web
-  cardBackground: '#ffffff',
-  surface: '#ffffff',
-  
-  // Text colors
+
+  background: '#0B0C0E',
+  cardBackground: '#14161A',
+
   text: {
-    primary: '#1f2937',
-    secondary: '#6b7280',
-    tertiary: '#9ca3af',
-    inverse: '#ffffff',
+    primary: '#F4F1EA',
+    secondary: '#9A9588',
+    tertiary: '#6E6A62',
+    inverse: '#0B0C0E',
   },
-  
-  // Status colors
-  success: '#10b981',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  info: '#3b82f6',
-  
-  // Neutral colors
+
+  success: '#6BBF8A',
+  warning: '#C8A96A',
+  error: '#E57373',
+  info: '#7EB8DA',
+
   gray: {
-    50: '#f9fafb',
-    100: '#f3f4f6',
-    200: '#e5e7eb',
-    300: '#d1d5db',
-    400: '#9ca3af',
-    500: '#6b7280',
-    600: '#4b5563',
-    700: '#374151',
-    800: '#1f2937',
-    900: '#111827',
+    50: 'rgba(255, 255, 255, 0.03)',
+    100: 'rgba(255, 255, 255, 0.06)',
+    200: 'rgba(255, 255, 255, 0.1)',
+    300: 'rgba(255, 255, 255, 0.15)',
+    400: '#9A9588',
+    500: '#6E6A62',
+    600: '#3A3D44',
+    700: '#22252B',
+    800: '#14161A',
+    900: '#0B0C0E',
   },
-  
-  // Border colors
-  border: '#e5e7eb',
-  borderLight: '#f3f4f6',
-  
-  // Shadow colors
-  shadow: 'rgba(0, 0, 0, 0.1)',
-  shadowDark: 'rgba(0, 0, 0, 0.2)',
+
+  border: 'rgba(255, 255, 255, 0.1)',
+  borderLight: 'rgba(255, 255, 255, 0.06)',
+
+  shadow: 'rgba(0, 0, 0, 0.4)',
+  shadowDark: 'rgba(0, 0, 0, 0.6)',
 };
 
 export default colors;
-

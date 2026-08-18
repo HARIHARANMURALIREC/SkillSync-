@@ -1,10 +1,12 @@
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from app.database import engine, Base
-from app.routers import auth, assessment, dashboard, learning_path, profile
+from app.routers import auth, assessment, dashboard, learning_path, profile, chat
+from app.ai.ollama_client import ollama_status, warm_model
 import traceback
+import threading
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -30,6 +32,11 @@ app.add_middleware(
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Handle all unhandled exceptions and ensure CORS headers are included."""
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
     print(f"Unhandled error: {str(exc)}")
     print(traceback.format_exc())
     return JSONResponse(
@@ -43,6 +50,12 @@ app.include_router(assessment.router)
 app.include_router(dashboard.router)
 app.include_router(learning_path.router)
 app.include_router(profile.router)
+app.include_router(chat.router)
+
+
+@app.on_event("startup")
+def _warm_ollama():
+    threading.Thread(target=warm_model, daemon=True).start()
 
 @app.get("/")
 def root():
@@ -50,7 +63,12 @@ def root():
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy"}
+    ollama = ollama_status()
+    return {
+        "status": "healthy" if ollama["reachable"] else "degraded",
+        "ollama": ollama["reachable"],
+        "model": ollama["model"],
+    }
 
 if __name__ == "__main__":
     import uvicorn

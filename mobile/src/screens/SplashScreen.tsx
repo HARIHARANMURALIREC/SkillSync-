@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { theme } from '../theme';
 
@@ -16,9 +16,9 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
         if (user) {
           navigation.replace('MainStack');
         } else {
-          navigation.replace('Login');
+          navigation.replace('Auth');
         }
-      }, 2000);
+      }, 1500);
 
       return () => clearTimeout(timer);
     }
@@ -26,13 +26,13 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Image 
-        source={require('../../assets/splash-icon.png')}
-        style={styles.logoImage}
-        resizeMode="contain"
-      />
       <Text style={styles.logo}>SkillSync</Text>
-      <Text style={styles.tagline}>Your Learning Journey, Personalized</Text>
+      <Text style={styles.tagline}>Your learning journey, personalized</Text>
+      <ActivityIndicator
+        size="small"
+        color={theme.colors.gold.DEFAULT}
+        style={styles.loader}
+      />
     </View>
   );
 };
@@ -42,21 +42,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.primary[800],
-  },
-  logoImage: {
-    width: 250,
-    height: 250,
-    marginBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.ink,
   },
   logo: {
     ...theme.typography.h1,
-    color: theme.colors.text.inverse,
-    marginBottom: theme.spacing.md,
+    color: theme.colors.cream,
+    marginBottom: theme.spacing.sm,
   },
   tagline: {
     ...theme.typography.body,
-    color: theme.colors.primary[100],
+    color: theme.colors.muted,
+  },
+  loader: {
+    marginTop: theme.spacing.xl,
   },
 });
-

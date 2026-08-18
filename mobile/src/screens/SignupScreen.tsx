@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { useAuth } from '../context/AuthContext';
@@ -16,7 +24,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{
-    fullName?: string;
     email?: string;
     password?: string;
     confirmPassword?: string;
@@ -25,7 +32,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
 
   const validate = () => {
     const newErrors: {
-      fullName?: string;
       email?: string;
       password?: string;
       confirmPassword?: string;
@@ -70,98 +76,74 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.gradient}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.content}>
-            {/* Logo Container with Glow Effect */}
-            <View style={styles.logoContainer}>
-              <View style={styles.logoGlow} />
-              <Image 
-                source={require('../../assets/icon.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          <Text style={styles.wordmark}>SkillSync</Text>
+          <Text style={styles.kicker}>Get started</Text>
+          <Text style={styles.title}>Create account</Text>
+          <Text style={styles.subtitle}>Start your personalized learning journey</Text>
+
+          <View style={styles.form}>
+            <Input
+              label="Full name (optional)"
+              placeholder="John Doe"
+              value={fullName}
+              onChangeText={setFullName}
+            />
+
+            <Input
+              label="Email"
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              error={errors.email}
+            />
+
+            <Input
+              label="Password"
+              placeholder="Create a password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              error={errors.password}
+            />
+
+            <Input
+              label="Confirm password"
+              placeholder="Confirm your password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              error={errors.confirmPassword}
+            />
+
+            <Button
+              title="Create account"
+              onPress={handleSignup}
+              loading={loading}
+              style={styles.signupButton}
+            />
+
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>Already have an account?</Text>
+              <View style={styles.dividerLine} />
             </View>
 
-            <Text style={styles.title}>Create Your Account</Text>
-            <Text style={styles.subtitle}>Start your personalized learning journey today</Text>
-
-            <View style={styles.card}>
-              <View style={styles.form}>
-                <Input
-                  label="Full Name (Optional)"
-                  placeholder="John Doe"
-                  value={fullName}
-                  onChangeText={setFullName}
-                  error={errors.fullName}
-                  style={styles.input}
-                />
-
-                <Input
-                  label="Email Address"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  error={errors.email}
-                  style={styles.input}
-                />
-
-                <Input
-                  label="Password"
-                  placeholder="Create a strong password"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  error={errors.password}
-                  style={styles.input}
-                />
-
-                <Input
-                  label="Confirm Password"
-                  placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry
-                  error={errors.confirmPassword}
-                  style={styles.input}
-                />
-
-                <Button
-                  title="Create Account"
-                  onPress={handleSignup}
-                  loading={loading}
-                  style={styles.signupButton}
-                />
-
-                {/* Divider */}
-                <View style={styles.dividerContainer}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>Already have an account?</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                <Button
-                  title="Sign In Instead"
-                  onPress={() => navigation.navigate('Login')}
-                  variant="secondary"
-                  style={styles.loginButton}
-                />
-
-              </View>
-            </View>
-
-            <Text style={styles.footerText}>
-              By creating an account, you agree to our Terms of Service and Privacy Policy
-            </Text>
+            <Button
+              title="Sign in instead"
+              onPress={() => navigation.navigate('Login')}
+              variant="secondary"
+            />
           </View>
-        </ScrollView>
-      </View>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 };
@@ -169,10 +151,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gradient: {
-    flex: 1,
-    backgroundColor: '#f8f5fb',
+    backgroundColor: theme.colors.ink,
   },
   scrollContent: {
     flexGrow: 1,
@@ -182,70 +161,42 @@ const styles = StyleSheet.create({
   content: {
     width: '100%',
   },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: theme.spacing['2xl'],
-    position: 'relative',
+  wordmark: {
+    ...theme.typography.h2,
+    color: theme.colors.cream,
+    textAlign: 'center',
+    marginBottom: theme.spacing.xl,
   },
-  logoGlow: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: theme.colors.primary[200],
-    opacity: 0.3,
-    top: -10,
-  },
-  logo: {
-    width: 180,
-    height: 180,
-    zIndex: 1,
+  kicker: {
+    ...theme.typography.kicker,
+    color: theme.colors.gold.DEFAULT,
+    marginBottom: theme.spacing.sm,
   },
   title: {
     ...theme.typography.h1,
-    color: theme.colors.text.primary,
+    color: theme.colors.cream,
     marginBottom: theme.spacing.sm,
-    textAlign: 'center',
-    fontWeight: '700',
-    fontSize: 32,
   },
   subtitle: {
     ...theme.typography.body,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing['2xl'],
-    textAlign: 'center',
-    fontSize: 16,
-  },
-  card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 24,
-    padding: theme.spacing.xl,
-    marginBottom: theme.spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    color: theme.colors.muted,
+    marginBottom: theme.spacing.xl,
   },
   form: {
-    width: '100%',
-  },
-  input: {
-    marginBottom: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.lg,
   },
   signupButton: {
-    marginTop: theme.spacing.md,
+    marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.lg,
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
   },
   dividerLine: {
     flex: 1,
@@ -254,26 +205,7 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     ...theme.typography.caption,
-    color: theme.colors.text.secondary,
+    color: theme.colors.muted,
     marginHorizontal: theme.spacing.md,
-  },
-  loginButton: {
-    marginBottom: theme.spacing.md,
-  },
-  backContainer: {
-    alignItems: 'center',
-    marginTop: theme.spacing.md,
-  },
-  backLink: {
-    ...theme.typography.body,
-    color: theme.colors.text.secondary,
-    fontSize: 14,
-  },
-  footerText: {
-    ...theme.typography.caption,
-    color: theme.colors.text.secondary,
-    textAlign: 'center',
-    fontSize: 12,
-    marginTop: theme.spacing.md,
   },
 });

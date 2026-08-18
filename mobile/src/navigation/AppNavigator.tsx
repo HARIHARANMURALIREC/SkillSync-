@@ -16,6 +16,7 @@ import { MCQTestScreen } from '../screens/MCQTestScreen';
 import { AssessmentResultScreen } from '../screens/AssessmentResultScreen';
 import { LearningPathScreen } from '../screens/LearningPathScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { CoachChatScreen } from '../screens/CoachChatScreen';
 import { LoadingScreen } from '../components/LoadingScreen';
 
 const Stack = createNativeStackNavigator();
@@ -34,16 +35,18 @@ function MainTabs() {
             iconName = focused ? 'clipboard' : 'clipboard-outline';
           } else if (route.name === 'LearningPath') {
             iconName = focused ? 'library' : 'library-outline';
+          } else if (route.name === 'Coach') {
+            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: theme.colors.primary[800],
-        tabBarInactiveTintColor: theme.colors.text.secondary,
+        tabBarActiveTintColor: theme.colors.gold.DEFAULT,
+        tabBarInactiveTintColor: theme.colors.muted,
         tabBarStyle: {
-          backgroundColor: theme.colors.cardBackground,
+          backgroundColor: theme.colors.ink,
           borderTopColor: theme.colors.border,
           borderTopWidth: 1,
           height: 60,
@@ -51,13 +54,14 @@ function MainTabs() {
           paddingTop: 8,
         },
         headerStyle: {
-          backgroundColor: theme.colors.cardBackground,
+          backgroundColor: theme.colors.ink,
           borderBottomColor: theme.colors.border,
           borderBottomWidth: 1,
         },
-        headerTintColor: theme.colors.text.primary,
+        headerTintColor: theme.colors.cream,
         headerTitleStyle: {
           ...theme.typography.h4,
+          color: theme.colors.cream,
         },
       })}
     >
@@ -75,6 +79,11 @@ function MainTabs() {
         name="LearningPath"
         component={LearningPathScreen}
         options={{ title: 'Learning Path' }}
+      />
+      <Tab.Screen
+        name="Coach"
+        component={CoachChatScreen}
+        options={{ title: 'Coach' }}
       />
       <Tab.Screen
         name="Profile"
@@ -104,11 +113,14 @@ function MainStack() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: theme.colors.cardBackground,
+          backgroundColor: theme.colors.ink,
+          borderBottomColor: theme.colors.border,
+          borderBottomWidth: 1,
         },
-        headerTintColor: theme.colors.text.primary,
+        headerTintColor: theme.colors.cream,
         headerTitleStyle: {
           ...theme.typography.h4,
+          color: theme.colors.cream,
         },
         contentStyle: { backgroundColor: theme.colors.background },
       }}

@@ -8,10 +8,10 @@ import { theme } from './src/theme';
 
 export default function App() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.ink }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <StatusBar style="dark" backgroundColor={theme.colors.background} />
+          <StatusBar style="light" backgroundColor={theme.colors.ink} />
           <AppNavigator />
         </AuthProvider>
       </SafeAreaProvider>

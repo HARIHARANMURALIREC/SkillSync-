@@ -4,7 +4,7 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const Profile = () => {
-  const { user: authUser, login } = useAuth();
+  const { user: authUser } = useAuth();
   const [formData, setFormData] = useState({
     full_name: '',
     career_goal: '',
@@ -51,10 +51,8 @@ const Profile = () => {
     try {
       await api.put('/api/profile', formData);
       setMessage('Profile updated successfully!');
-      // Refresh user data in context
       if (authUser) {
-        const response = await api.get('/api/auth/me');
-        // Note: In a real app, you'd update the context properly
+        await api.get('/api/auth/me');
       }
       setTimeout(() => {
         navigate('/dashboard');
@@ -69,26 +67,25 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="card">
-        <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-        </div>
+      <div className="card animate-pulse">
+        <div className="h-6 bg-white/10 rounded w-1/4 mb-4"></div>
+        <div className="h-4 bg-white/10 rounded w-3/4"></div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="card">
-        <h1 className="text-2xl font-bold mb-6">Profile Settings</h1>
+    <div className="max-w-xl">
+      <p className="page-kicker">Account</p>
+      <h1 className="page-title mb-8">Profile</h1>
 
+      <div className="card">
         {message && (
           <div
-            className={`mb-4 p-4 rounded-lg ${
+            className={`mb-6 p-4 rounded-xl text-sm ${
               message.includes('success')
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-red-50 text-red-700 border border-red-200'
+                ? 'border border-gold/30 text-gold'
+                : 'border border-red-400/30 text-red-200'
             }`}
           >
             {message}
@@ -97,8 +94,8 @@ const Profile = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-2">
-              Full Name
+            <label htmlFor="full_name" className="block text-xs uppercase tracking-wider text-muted mb-2">
+              Full name
             </label>
             <input
               id="full_name"
@@ -110,8 +107,8 @@ const Profile = () => {
           </div>
 
           <div>
-            <label htmlFor="career_goal" className="block text-sm font-medium text-gray-700 mb-2">
-              Career Goal
+            <label htmlFor="career_goal" className="block text-xs uppercase tracking-wider text-muted mb-2">
+              Career goal
             </label>
             <select
               id="career_goal"
@@ -126,14 +123,14 @@ const Profile = () => {
                 </option>
               ))}
             </select>
-            <p className="mt-2 text-sm text-gray-500">
-              Setting a career goal helps us generate personalized skill recommendations.
+            <p className="mt-2 text-sm text-muted">
+              Used to generate skill targets and weekly plans.
             </p>
           </div>
 
           <div>
-            <label htmlFor="hours_per_week" className="block text-sm font-medium text-gray-700 mb-2">
-              Hours per Week Available for Learning
+            <label htmlFor="hours_per_week" className="block text-xs uppercase tracking-wider text-muted mb-2">
+              Hours per week
             </label>
             <input
               id="hours_per_week"
@@ -146,12 +143,12 @@ const Profile = () => {
                 setFormData({ ...formData, hours_per_week: parseInt(e.target.value) || 10 })
               }
             />
-            <p className="mt-2 text-sm text-gray-500">
-              This helps us plan your learning schedule realistically.
+            <p className="mt-2 text-sm text-muted">
+              Keeps the weekly plan realistic.
             </p>
           </div>
 
-          <div className="flex justify-end space-x-4">
+          <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={() => navigate('/dashboard')}
@@ -160,7 +157,7 @@ const Profile = () => {
               Cancel
             </button>
             <button type="submit" disabled={saving} className="btn-primary">
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </form>
@@ -170,4 +167,3 @@ const Profile = () => {
 };
 
 export default Profile;
-

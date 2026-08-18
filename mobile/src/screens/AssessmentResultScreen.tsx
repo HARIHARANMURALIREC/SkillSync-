@@ -68,25 +68,40 @@ export const AssessmentResultScreen: React.FC<AssessmentResultScreenProps> = ({
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>Accuracy:</Text>
               <Text style={styles.breakdownValue}>
-                {result.breakdown.accuracy
-                  ? `${(result.breakdown.accuracy * 100).toFixed(1)}%`
-                  : 'N/A'}
+                {result.breakdown.overall_accuracy != null
+                  ? `${result.breakdown.overall_accuracy}%`
+                  : result.breakdown.accuracy
+                    ? `${(result.breakdown.accuracy * 100).toFixed(1)}%`
+                    : 'N/A'}
               </Text>
             </View>
           </View>
         )}
       </Card>
 
+      {result.breakdown?.feedback && (
+        <Card style={styles.feedbackCard}>
+          <Text style={styles.feedbackLabel}>AI Feedback</Text>
+          <Text style={styles.feedbackText}>{result.breakdown.feedback}</Text>
+        </Card>
+      )}
+
       <View style={styles.buttonContainer}>
         <Button
-          title="Back to Assessments"
-          onPress={() => navigation.navigate('Assessments')}
+          title="View Dashboard"
+          onPress={() => navigation.navigate('Dashboard')}
+          style={styles.button}
+        />
+        <Button
+          title="Ask Your Coach"
+          onPress={() => navigation.navigate('Coach')}
           variant="secondary"
           style={styles.button}
         />
         <Button
-          title="View Dashboard"
-          onPress={() => navigation.navigate('Dashboard')}
+          title="Another Assessment"
+          onPress={() => navigation.navigate('Assessments')}
+          variant="secondary"
           style={styles.button}
         />
       </View>
@@ -118,7 +133,7 @@ const styles = StyleSheet.create({
   },
   score: {
     ...theme.typography.h1,
-    color: theme.colors.primary[800],
+    color: theme.colors.gold.DEFAULT,
     fontSize: 48,
   },
   scoreLabel: {
@@ -156,6 +171,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.text.primary,
   },
+  feedbackCard: {
+    marginTop: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.gold.DEFAULT,
+  },
+  feedbackLabel: {
+    ...theme.typography.kicker,
+    color: theme.colors.gold.DEFAULT,
+    marginBottom: theme.spacing.sm,
+  },
+  feedbackText: {
+    ...theme.typography.body,
+    color: theme.colors.text.primary,
+    lineHeight: 22,
+  },
   buttonContainer: {
     gap: theme.spacing.md,
     marginTop: theme.spacing.md,
@@ -164,4 +194,3 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 });
-

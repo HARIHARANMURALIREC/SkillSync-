@@ -35,5 +35,17 @@ api.interceptors.response.use(
   }
 );
 
+export function getApiErrorMessage(error, fallback = 'Something went wrong. Please try again.') {
+  const status = error.response?.status;
+  const detail = error.response?.data?.detail;
+  if (status === 503) {
+    return detail || 'Ollama is not running. Start it with `ollama serve`. SkillSync uses the mistral:latest model.';
+  }
+  if (typeof detail === 'string' && detail) {
+    return detail;
+  }
+  return fallback;
+}
+
 export default api;
 

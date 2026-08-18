@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, JSON, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, JSON, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -58,6 +58,21 @@ class LearningPath(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     user = relationship("User", back_populates="learning_paths")
+
+class LearningProgress(Base):
+    __tablename__ = "learning_progress"
+    __table_args__ = (
+        UniqueConstraint("user_id", "week_number", "resource_index", name="uq_learning_progress"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    week_number = Column(Integer, nullable=False)
+    resource_index = Column(Integer, nullable=False)
+    completed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
 
 class MCQQuestion(Base):
     __tablename__ = "mcq_questions"

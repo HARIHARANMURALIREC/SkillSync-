@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../services/auth';
+import { getApiErrorMessage } from '../services/api';
 
 interface User {
   id: number;
@@ -76,7 +77,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Login error:', error);
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Login failed',
+        error: getApiErrorMessage(error, 'Login failed. Check your email and password.'),
       };
     }
   };

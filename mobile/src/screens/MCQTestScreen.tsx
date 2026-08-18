@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: theme.colors.primary[800],
+    backgroundColor: theme.colors.gold.DEFAULT,
   },
   progressText: {
     ...theme.typography.bodySmall,
@@ -229,27 +229,27 @@ const styles = StyleSheet.create({
   option: {
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: theme.colors.border,
-    backgroundColor: theme.colors.cardBackground,
+    backgroundColor: theme.colors.ink,
   },
   optionSelected: {
-    borderColor: theme.colors.primary[800],
-    backgroundColor: theme.colors.primary[50],
+    borderColor: theme.colors.gold.DEFAULT,
+    backgroundColor: theme.colors.gold.faint,
   },
   optionText: {
     ...theme.typography.body,
-    color: theme.colors.text.primary,
+    color: theme.colors.cream,
   },
   optionTextSelected: {
-    color: theme.colors.primary[800],
+    color: theme.colors.gold.DEFAULT,
     fontWeight: '600',
   },
   navigationContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: theme.spacing.lg,
-    backgroundColor: theme.colors.cardBackground,
+    backgroundColor: theme.colors.ink,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
     gap: theme.spacing.md,

@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { Card } from '../components/Card';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { PageHeader } from '../components/PageHeader';
 import api from '../services/api';
 import { theme } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { SkillInfo } from '../types';
 
 interface AssessmentsScreenProps {
   navigation: any;
@@ -12,7 +14,7 @@ interface AssessmentsScreenProps {
 
 export const AssessmentsScreen: React.FC<AssessmentsScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
-  const [skills, setSkills] = useState<string[]>([]);
+  const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -36,6 +38,29 @@ export const AssessmentsScreen: React.FC<AssessmentsScreenProps> = ({ navigation
     setRefreshing(true);
     fetchSkills();
   };
+
+  const recommended = skills.filter((s) => s.recommended);
+  const other = skills.filter((s) => !s.recommended);
+
+  const renderSkill = (skill: SkillInfo) => (
+    <TouchableOpacity
+      key={skill.name}
+      onPress={() => navigation.navigate('MCQTest', { skillName: skill.name })}
+    >
+      <Card style={styles.skillCard}>
+        <View style={styles.skillHeader}>
+          <View style={styles.skillInfo}>
+            <Text style={styles.skillName}>
+              {skill.name}
+              {skill.recommended ? ' ★' : ''}
+            </Text>
+            <Text style={styles.questionCount}>{skill.question_count} questions</Text>
+          </View>
+          <Text style={styles.arrow}>→</Text>
+        </View>
+      </Card>
+    </TouchableOpacity>
+  );
 
   if (loading) {
     return <LoadingScreen />;
@@ -72,22 +97,27 @@ export const AssessmentsScreen: React.FC<AssessmentsScreenProps> = ({ navigation
       contentContainerStyle={styles.contentContainer}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <Text style={styles.title}>Available Assessments</Text>
-      <Text style={styles.subtitle}>Choose a skill to assess your knowledge</Text>
+      <PageHeader
+        kicker="Evaluate"
+        title="Skill assessments"
+        subtitle="Choose a skill to assess your knowledge"
+      />
 
-      {skills.map((skill, index) => (
-        <TouchableOpacity
-          key={index}
-          onPress={() => navigation.navigate('MCQTest', { skillName: skill })}
-        >
-          <Card style={styles.skillCard}>
-            <View style={styles.skillHeader}>
-              <Text style={styles.skillName}>{skill}</Text>
-              <Text style={styles.arrow}>→</Text>
-            </View>
-          </Card>
-        </TouchableOpacity>
-      ))}
+      {recommended.length > 0 && (
+        <>
+          <Text style={styles.sectionLabel}>Recommended for your goal</Text>
+          {recommended.map(renderSkill)}
+        </>
+      )}
+
+      {other.length > 0 && (
+        <>
+          {recommended.length > 0 && (
+            <Text style={styles.sectionLabelMuted}>Other skills</Text>
+          )}
+          {other.map(renderSkill)}
+        </>
+      )}
     </ScrollView>
   );
 };
@@ -113,7 +143,19 @@ const styles = StyleSheet.create({
   subtitle: {
     ...theme.typography.body,
     color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
+  },
+  sectionLabel: {
+    ...theme.typography.kicker,
+    color: theme.colors.gold.DEFAULT,
+    marginBottom: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  sectionLabelMuted: {
+    ...theme.typography.kicker,
+    color: theme.colors.muted,
+    marginBottom: theme.spacing.sm,
+    marginTop: theme.spacing.lg,
   },
   skillCard: {
     marginBottom: theme.spacing.md,
@@ -123,14 +165,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  skillInfo: {
+    flex: 1,
+  },
   skillName: {
     ...theme.typography.h4,
-    color: theme.colors.text.primary,
-    flex: 1,
+    color: theme.colors.cream,
+  },
+  questionCount: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginTop: 4,
   },
   arrow: {
     ...theme.typography.h3,
-    color: theme.colors.primary[800],
+    color: theme.colors.gold.DEFAULT,
   },
   emptyCard: {
     alignItems: 'center',
@@ -149,14 +198,13 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xl,
   },
   setGoalButton: {
-    backgroundColor: theme.colors.primary[800],
+    backgroundColor: theme.colors.gold.DEFAULT,
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.xl,
     borderRadius: theme.borderRadius.md,
   },
   setGoalButtonText: {
     ...theme.typography.button,
-    color: theme.colors.text.inverse,
+    color: theme.colors.ink,
   },
 });
-
