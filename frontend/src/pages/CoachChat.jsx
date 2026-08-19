@@ -8,6 +8,31 @@ const STARTER_PROMPTS = [
   'How do I prepare for a reassessment?',
 ];
 
+function CoachMessage({ content, className }) {
+  const lines = (content || '').split('\n');
+  return (
+    <div className={`${className} whitespace-pre-wrap`}>
+      {lines.map((line, i) => {
+        const isHeading = /^(Focus|Plan|Check[-‑]?in|Next)$/i.test(line.trim());
+        return (
+          <p
+            key={i}
+            className={
+              isHeading
+                ? 'mt-3 first:mt-0 text-xs uppercase tracking-wider text-gold'
+                : line.trim()
+                  ? 'mt-1'
+                  : 'h-2'
+            }
+          >
+            {line}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 const CoachChat = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -46,7 +71,7 @@ const CoachChat = () => {
         <p className="page-kicker">Guide</p>
         <h1 className="page-title">Career coach</h1>
         <p className="mt-3 text-muted max-w-xl">
-          Ask about your gaps, learning path, and next steps. Powered by local Ollama.
+          Ask about your gaps, learning path, and next steps. Groq primary, Ollama fallback.
         </p>
       </div>
 
@@ -76,15 +101,14 @@ const CoachChat = () => {
               key={idx}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div
+              <CoachMessage
+                content={msg.content}
                 className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-gold text-ink'
                     : 'bg-white/5 border border-white/10 text-cream'
                 }`}
-              >
-                {msg.content}
-              </div>
+              />
             </div>
           ))}
 

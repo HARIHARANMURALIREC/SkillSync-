@@ -27,7 +27,7 @@ const features = [
   {
     icon: Sparkles,
     title: 'Local AI',
-    body: 'Mistral runs on your machine through Ollama. Coaching stays private and on-device.',
+    body: 'Groq is primary. If it is down, coaching falls back to Mistral on your machine via Ollama.',
   },
   {
     icon: Gauge,
@@ -228,12 +228,12 @@ const LandingPage = () => {
           variants={stagger}
         >
           <motion.div variants={fadeUp}>
-            <p className="page-kicker">Private by default</p>
+            <p className="page-kicker">Fast by default</p>
             <h2 className="font-serif text-4xl md:text-5xl max-w-lg leading-tight">
-              Local Ollama. No cloud model in the loop.
+              Groq primary. Ollama fallback.
             </h2>
             <p className="mt-6 text-muted max-w-md leading-relaxed">
-              Coaching, gaps, and weekly plans come from Mistral running on your machine. Scoring stays deterministic math.
+              Coaching, gaps, and weekly plans use Groq first. If Groq is unavailable, SkillSync falls back to local Ollama. Scoring stays deterministic math.
             </p>
           </motion.div>
           <MotionLink

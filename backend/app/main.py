@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from app.database import engine, Base
 from app.routers import auth, assessment, dashboard, learning_path, profile, chat
-from app.ai.ollama_client import ollama_status, warm_model
+from app.ai.ollama_client import llm_status, warm_model
 import traceback
 import threading
 
@@ -63,11 +63,14 @@ def root():
 
 @app.get("/api/health")
 def health_check():
-    ollama = ollama_status()
+    llm = llm_status()
+    healthy = llm["groq"] or llm["ollama"]
     return {
-        "status": "healthy" if ollama["reachable"] else "degraded",
-        "ollama": ollama["reachable"],
-        "model": ollama["model"],
+        "status": "healthy" if healthy else "degraded",
+        "primary": llm["primary"],
+        "groq": llm["groq"],
+        "ollama": llm["ollama"],
+        "model": llm["model"],
     }
 
 if __name__ == "__main__":

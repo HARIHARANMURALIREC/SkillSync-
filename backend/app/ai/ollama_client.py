@@ -1,14 +1,16 @@
 """
-Ollama HTTP client for SkillSync AI.
+LLM client for SkillSync AI.
 
-Talks to a local Ollama server (default http://localhost:11434) and returns
-validated JSON. Connection failures surface as HTTP 503.
+Tries Groq first (OpenAI-compatible chat completions), then falls back to a
+local Ollama server. Connection failures on both backends surface as HTTP 503.
 """
 
-import os
 import json
+import logging
+import os
 import re
-from typing import Any, Type, TypeVar
+from pathlib import Path
+from typing import Any, Optional, Type, TypeVar
 
 import httpx
 from dotenv import load_dotenv
@@ -16,24 +18,54 @@ from fastapi import HTTPException, status
 from json_repair import repair_json
 from pydantic import BaseModel, ValidationError
 
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 load_dotenv()
+
+GROQ_API_KEY = (os.getenv("GROQ_API_KEY") or "").strip()
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral:latest")
 
+logger = logging.getLogger(__name__)
+
 T = TypeVar("T", bound=BaseModel)
+
+BOTH_DOWN_DETAIL = (
+    "Groq and Ollama are unavailable. Check GROQ_API_KEY and start Ollama with "
+    f"`ollama serve` (e.g. `ollama pull {OLLAMA_MODEL}`)."
+)
 
 OLLAMA_DOWN_DETAIL = (
     "Ollama is not running. Start it with `ollama serve` "
     f"and pull a model (e.g. `ollama pull {OLLAMA_MODEL}`)."
 )
 
-# Reuse TCP connections so we don't pay handshake cost on every call.
 _http = httpx.Client(timeout=httpx.Timeout(90.0, connect=5.0))
 
 
+def groq_configured() -> bool:
+    return bool(GROQ_API_KEY)
+
+
+def llm_status() -> dict:
+    """Status for /api/health: Groq config plus Ollama reachability."""
+    ollama = ollama_status()
+    groq = groq_configured()
+    return {
+        "primary": "groq" if groq else "ollama",
+        "groq": groq,
+        "ollama": ollama["reachable"],
+        "model": GROQ_MODEL if groq else OLLAMA_MODEL,
+        "ollama_model": OLLAMA_MODEL,
+        "groq_model": GROQ_MODEL,
+        "ollama_model_available": ollama["model_available"],
+    }
+
+
 def warm_model() -> None:
-    """Load Mistral into memory in the background so the first user request is faster."""
+    """Load Mistral into memory in the background so fallback is faster."""
     try:
         _http.post(
             f"{OLLAMA_BASE_URL}/api/generate",
@@ -105,7 +137,6 @@ def _validate_schema(parsed: Any, schema: Type[T]) -> T:
                 except ValidationError:
                     continue
         if isinstance(parsed, dict):
-            # Common alternate keys from Mistral
             if "weekly_paths" not in parsed:
                 for alt in ("weeks", "path", "learning_path", "adapted_path"):
                     if alt in parsed and "weekly_paths" in schema.model_fields:
@@ -115,130 +146,108 @@ def _validate_schema(parsed: Any, schema: Type[T]) -> T:
         raise
 
 
-def chat_json(
-    system: str,
-    user: str,
-    schema: Type[T],
-    timeout: float = 45.0,
-    num_predict: int = 400,
-    retries: int = 1,
-) -> T:
-    """
-    Send a chat request to Ollama and parse a JSON response into `schema`.
-
-    Caps generated tokens so Mistral finishes quickly. Raises HTTP 503 if
-    Ollama is unreachable, the model is missing, or the reply cannot be parsed.
-    """
-    last_error = None
-    messages = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": user},
-    ]
-
-    attempts = max(1, retries + 1)
-    for attempt in range(attempts):
-        predict = num_predict if attempt == 0 else min(num_predict * 2, 1200)
-        if attempt > 0 and last_error:
-            messages.append({
-                "role": "user",
-                "content": "Your last reply was cut off or invalid. Return one complete JSON object only.",
-            })
-
-        try:
-            response = _http.post(
-                f"{OLLAMA_BASE_URL}/api/chat",
-                json={
-                    "model": OLLAMA_MODEL,
-                    "stream": False,
-                    "format": "json",
-                    "keep_alive": "30m",
-                    "options": {
-                        "temperature": 0.1,
-                        "num_predict": predict,
-                        "num_ctx": 4096,
-                    },
-                    "messages": messages,
-                },
-                timeout=timeout,
-            )
-            response.raise_for_status()
-        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=OLLAMA_DOWN_DETAIL,
-            ) from exc
-        except httpx.TimeoutException as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Ollama timed out. Try again — the model may still be warming up.",
-            ) from exc
-        except httpx.HTTPStatusError as exc:
-            if exc.response is not None and exc.response.status_code == 404:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=(
-                        f"Ollama model '{OLLAMA_MODEL}' is not available. "
-                        f"Run `ollama pull {OLLAMA_MODEL}`."
-                    ),
-                ) from exc
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Ollama request failed: {exc}",
-            ) from exc
-
-        content = response.json().get("message", {}).get("content", "") or ""
-        try:
-            parsed = _loads_loose(content)
-            return _validate_schema(parsed, schema)
-        except (json.JSONDecodeError, ValidationError, ValueError, TypeError) as exc:
-            last_error = str(exc)
-            continue
-
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail="Ollama returned incomplete JSON. Please try generating again.",
-    )
+def _strip_think(content: str) -> str:
+    """Remove reasoning tags some Groq models leak into the visible reply."""
+    text = re.sub(r"<think>.*?</think>", "", content or "", flags=re.DOTALL | re.IGNORECASE)
+    return text.strip()
 
 
-def chat_text(
-    system: str,
+def _groq_chat(
     messages: list[dict],
-    timeout: float = 60.0,
-    num_predict: int = 512,
-    temperature: float = 0.4,
+    timeout: float,
+    max_tokens: int,
+    temperature: float,
+    json_mode: bool,
 ) -> str:
-    """Send a chat request to Ollama and return plain text."""
-    ollama_messages = [{"role": "system", "content": system}]
-    for msg in messages:
-        if msg.get("role") in ("user", "assistant") and msg.get("content"):
-            ollama_messages.append({"role": msg["role"], "content": msg["content"]})
+    """Call Groq chat completions. Raises on any failure so callers can fall back."""
+    if not groq_configured():
+        raise RuntimeError("GROQ_API_KEY is not set")
+
+    payload: dict[str, Any] = {
+        "model": GROQ_MODEL,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    if json_mode:
+        payload["response_format"] = {"type": "json_object"}
+
+    try:
+        response = _http.post(
+            f"{GROQ_BASE_URL}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=timeout,
+        )
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        body = ""
+        if exc.response is not None:
+            try:
+                err = exc.response.json().get("error") or {}
+                body = err.get("message") or exc.response.text[:300]
+            except Exception:
+                body = (exc.response.text or "")[:300]
+        raise RuntimeError(f"Groq HTTP {exc.response.status_code if exc.response else '?'}: {body}") from exc
+
+    data = response.json()
+    choices = data.get("choices") or []
+    if not choices:
+        raise ValueError("Groq returned no choices")
+    message = choices[0].get("message") or {}
+    content = _strip_think((message.get("content") or "").strip())
+    finish = choices[0].get("finish_reason")
+    if (not content or len(content) < 40) and finish == "length" and max_tokens < 2400:
+        return _groq_chat(messages, timeout, min(max_tokens * 2, 2400), temperature, json_mode)
+    if not content:
+        raise ValueError("Groq returned empty content")
+    return content
+
+
+def _ollama_chat(
+    messages: list[dict],
+    timeout: float,
+    num_predict: int,
+    temperature: float,
+    json_mode: bool,
+) -> str:
+    payload: dict[str, Any] = {
+        "model": OLLAMA_MODEL,
+        "stream": False,
+        "keep_alive": "30m",
+        "options": {
+            "temperature": temperature,
+            "num_predict": num_predict,
+            "num_ctx": 4096,
+        },
+        "messages": messages,
+    }
+    if json_mode:
+        payload["format"] = "json"
 
     try:
         response = _http.post(
             f"{OLLAMA_BASE_URL}/api/chat",
-            json={
-                "model": OLLAMA_MODEL,
-                "stream": False,
-                "keep_alive": "30m",
-                "options": {
-                    "temperature": temperature,
-                    "num_predict": num_predict,
-                    "num_ctx": 4096,
-                },
-                "messages": ollama_messages,
-            },
+            json=payload,
             timeout=timeout,
         )
         response.raise_for_status()
     except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=OLLAMA_DOWN_DETAIL,
+            detail=BOTH_DOWN_DETAIL if groq_configured() else OLLAMA_DOWN_DETAIL,
         ) from exc
     except httpx.TimeoutException as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Ollama timed out. Try again — the model may still be warming up.",
+            detail=(
+                "Groq failed and Ollama timed out. Try again — the local model may still be warming up."
+                if groq_configured()
+                else "Ollama timed out. Try again — the model may still be warming up."
+            ),
         ) from exc
     except httpx.HTTPStatusError as exc:
         if exc.response is not None and exc.response.status_code == 404:
@@ -255,3 +264,126 @@ def chat_text(
         ) from exc
 
     return (response.json().get("message", {}).get("content", "") or "").strip()
+
+
+def chat_json(
+    system: str,
+    user: str,
+    schema: Type[T],
+    timeout: float = 45.0,
+    num_predict: int = 400,
+    retries: int = 1,
+) -> T:
+    """
+    Chat and parse JSON into `schema`. Groq first, then Ollama.
+    """
+    last_error: Optional[str] = None
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+
+    attempts = max(1, retries + 1)
+
+    if groq_configured():
+        groq_messages = list(messages)
+        for attempt in range(attempts):
+            predict = num_predict if attempt == 0 else min(num_predict * 2, 1200)
+            if attempt > 0 and last_error:
+                groq_messages.append({
+                    "role": "user",
+                    "content": "Your last reply was cut off or invalid. Return one complete JSON object only.",
+                })
+            try:
+                content = _groq_chat(
+                    groq_messages,
+                    timeout=timeout,
+                    max_tokens=predict,
+                    temperature=0.1,
+                    json_mode=True,
+                )
+                parsed = _loads_loose(content)
+                result = _validate_schema(parsed, schema)
+                logger.info("LLM backend: groq")
+                return result
+            except (
+                httpx.HTTPError,
+                json.JSONDecodeError,
+                ValidationError,
+                ValueError,
+                TypeError,
+                RuntimeError,
+            ) as exc:
+                last_error = str(exc)
+                logger.warning("Groq JSON attempt %s failed: %s", attempt + 1, last_error)
+                continue
+        logger.info("Falling back to Ollama after Groq JSON failure")
+
+    last_error = None
+    ollama_messages = list(messages)
+    for attempt in range(attempts):
+        predict = num_predict if attempt == 0 else min(num_predict * 2, 1200)
+        if attempt > 0 and last_error:
+            ollama_messages.append({
+                "role": "user",
+                "content": "Your last reply was cut off or invalid. Return one complete JSON object only.",
+            })
+        content = _ollama_chat(
+            ollama_messages,
+            timeout=timeout,
+            num_predict=predict,
+            temperature=0.1,
+            json_mode=True,
+        )
+        try:
+            parsed = _loads_loose(content)
+            result = _validate_schema(parsed, schema)
+            logger.info("LLM backend: ollama")
+            return result
+        except (json.JSONDecodeError, ValidationError, ValueError, TypeError) as exc:
+            last_error = str(exc)
+            continue
+
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Groq and Ollama returned incomplete JSON. Please try generating again.",
+    )
+
+
+def chat_text(
+    system: str,
+    messages: list[dict],
+    timeout: float = 60.0,
+    num_predict: int = 512,
+    temperature: float = 0.4,
+) -> str:
+    """Send a chat request (Groq first, Ollama fallback) and return plain text."""
+    chat_messages = [{"role": "system", "content": system}]
+    for msg in messages:
+        if msg.get("role") in ("user", "assistant") and msg.get("content"):
+            chat_messages.append({"role": msg["role"], "content": msg["content"]})
+
+    if groq_configured():
+        try:
+            content = _groq_chat(
+                chat_messages,
+                timeout=timeout,
+                max_tokens=num_predict,
+                temperature=temperature,
+                json_mode=False,
+            )
+            if content:
+                logger.info("LLM backend: groq")
+                return content
+        except (httpx.HTTPError, ValueError, RuntimeError) as exc:
+            logger.warning("Groq text failed, falling back to Ollama: %s", exc)
+
+    content = _ollama_chat(
+        chat_messages,
+        timeout=timeout,
+        num_predict=num_predict,
+        temperature=temperature,
+        json_mode=False,
+    )
+    logger.info("LLM backend: ollama")
+    return content

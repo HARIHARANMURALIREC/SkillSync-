@@ -89,7 +89,7 @@ const Assessment = () => {
         <p className="page-kicker">Evaluate</p>
         <h1 className="page-title">Skill assessments</h1>
         <p className="mt-3 text-muted max-w-xl">
-          Choose a skill. Your score stays math; coaching comes from local Ollama.
+          Choose a skill. Your score stays math; coaching uses Groq, with Ollama as fallback.
         </p>
       </div>
 

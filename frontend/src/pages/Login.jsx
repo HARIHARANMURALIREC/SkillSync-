@@ -39,7 +39,7 @@ const Login = () => {
             <span className="italic text-gold"> left off.</span>
           </h1>
         </div>
-        <p className="text-sm text-muted">Local Ollama · Private by default</p>
+        <p className="text-sm text-muted">Groq primary · Ollama fallback</p>
       </div>
 
       <div className="flex-1 flex items-center justify-center px-6 py-16">

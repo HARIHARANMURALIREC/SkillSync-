@@ -1,5 +1,3 @@
-"""AI career coach — context building and chat."""
-
 from typing import Dict, List, Optional
 
 from app.models import User
@@ -48,12 +46,46 @@ def build_coach_context(
 
 def coach_system_prompt(context: str) -> str:
     return (
-        "You are SkillSync's AI career coach. Help the user grow toward their career goal "
-        "with practical, encouraging advice. Use the user context below. "
-        "Suggest concrete next steps (assessments, resources, weekly focus). "
-        "Keep replies under 200 words. Do not invent scores or gaps not in the context.\n\n"
+        "You are SkillSync's AI career coach.\n"
+        "Write a short, scannable reply. Never use markdown tables, pipes (|), or HTML.\n"
+        "Do not invent scores, hours, or gaps that are not in USER CONTEXT.\n"
+        "Respect hours per week. Suggest at most 3 actions.\n"
+        "Use this exact layout with blank lines between sections:\n\n"
+        "Focus\n"
+        "One sentence on the week's priority.\n\n"
+        "Plan\n"
+        "- Skill (Xh): one resource and one action\n"
+        "- Skill (Xh): one resource and one action\n"
+        "- Skill (Xh): one resource and one action\n\n"
+        "Check-in\n"
+        "- One measurable target (quiz score, module, or hours)\n\n"
+        "Next\n"
+        "One sentence for the following week.\n\n"
+        "Keep the whole reply under 160 words. No emojis.\n\n"
         f"USER CONTEXT:\n{context}"
     )
+
+
+def _normalize_coach_reply(text: str) -> str:
+    """Turn accidental markdown tables into bullets and tidy whitespace."""
+    lines = [line.rstrip() for line in (text or "").splitlines()]
+    cleaned: List[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            if cleaned and cleaned[-1] != "":
+                cleaned.append("")
+            continue
+        if set(stripped.replace("|", "").replace("-", "").replace(":", "").replace(" ", "")) == set():
+            continue
+        if stripped.startswith("|") and stripped.endswith("|"):
+            cells = [c.strip() for c in stripped.strip("|").split("|") if c.strip()]
+            cells = [c for c in cells if c not in ("Time (hrs)", "Topic", "Action", "Resource")]
+            if len(cells) >= 2:
+                cleaned.append("- " + " — ".join(cells))
+            continue
+        cleaned.append(stripped)
+    return "\n".join(cleaned).strip()
 
 
 def chat_with_coach(
@@ -68,5 +100,5 @@ def chat_with_coach(
     system = coach_system_prompt(context)
 
     recent = messages[-10:] if len(messages) > 10 else messages
-    reply = chat_text(system=system, messages=recent)
-    return reply or "I'm having trouble forming a response. Please try again."
+    reply = chat_text(system=system, messages=recent, temperature=0.2, num_predict=1800)
+    return _normalize_coach_reply(reply) or "I'm having trouble forming a response. Please try again."

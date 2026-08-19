@@ -99,7 +99,7 @@ export function getApiErrorMessage(
   if (status === 503) {
     return (
       detail ||
-      'Ollama is not running. Start it with `ollama serve`. SkillSync uses the mistral:latest model.'
+      'AI is unavailable. Check GROQ_API_KEY and start Ollama with `ollama serve`.'
     );
   }
   if (typeof detail === 'string' && detail) {

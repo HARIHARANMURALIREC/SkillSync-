@@ -39,7 +39,7 @@ export function getApiErrorMessage(error, fallback = 'Something went wrong. Plea
   const status = error.response?.status;
   const detail = error.response?.data?.detail;
   if (status === 503) {
-    return detail || 'Ollama is not running. Start it with `ollama serve`. SkillSync uses the mistral:latest model.';
+    return detail || 'AI is unavailable. Check GROQ_API_KEY and start Ollama with `ollama serve`.';
   }
   if (typeof detail === 'string' && detail) {
     return detail;
