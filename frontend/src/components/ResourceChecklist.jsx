@@ -18,15 +18,15 @@ const ResourceChecklist = ({
         return (
           <label
             key={index}
-            className={`flex items-start gap-3 p-3 rounded-xl border transition-colors cursor-pointer ${
+            className={`flex items-start gap-3 p-3 rounded-2xl border transition-colors cursor-pointer ${
               isCompleted
-                ? 'border-gold/30 bg-gold-faint/50'
-                : 'border-white/10 hover:border-white/20'
+                ? 'border-gold/30 bg-gold/10'
+                : 'border-line hover:border-gold/30'
             } ${disabled ? 'opacity-60 pointer-events-none' : ''}`}
           >
             <span
               className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
-                isCompleted ? 'bg-gold border-gold text-ink' : 'border-white/30'
+                isCompleted ? 'bg-gold border-gold text-bg' : 'border-line'
               }`}
             >
               {isCompleted && <Check size={12} strokeWidth={3} />}
@@ -39,7 +39,7 @@ const ResourceChecklist = ({
               onChange={() => onToggle(weekNumber, index, !isCompleted)}
             />
             <div className="flex-1 min-w-0">
-              <p className={`text-sm ${isCompleted ? 'text-cream' : 'text-cream/90'}`}>
+              <p className={`text-sm ${isCompleted ? 'text-fg' : 'text-fg/90'}`}>
                 {resource.title}
               </p>
               <p className="text-xs text-muted capitalize mt-0.5">

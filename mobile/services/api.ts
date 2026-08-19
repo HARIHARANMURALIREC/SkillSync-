@@ -28,6 +28,10 @@ class ApiService {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+        const now = new Date();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        config.headers['X-Local-Date'] = `${now.getFullYear()}-${m}-${d}`;
         return config;
       },
       (error: AxiosError) => {

@@ -3,21 +3,15 @@ import { useAuth } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-ink flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gold"></div>
+      <div className="min-h-screen bg-bg grid place-items-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-gold border-t-transparent" />
       </div>
     );
   }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
+  if (!user) return <Navigate to="/login" replace />;
   return children;
 };
 
 export default ProtectedRoute;
-

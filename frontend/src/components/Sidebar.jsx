@@ -1,82 +1,91 @@
-import { Link, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import {
+  LayoutDashboard,
+  ClipboardList,
+  Map,
+  MessageCircle,
+  UserRound,
+  LogOut,
+  Sparkles,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, ClipboardList, Map, UserRound, LogOut, MessageCircle } from 'lucide-react';
+import { useProgress } from '../context/ProgressContext';
+import LevelChip from './ui/LevelChip';
 
-const Sidebar = ({ isOpen, onClose }) => {
-  const location = useLocation();
+const links = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/assessment', label: 'Assessment', icon: ClipboardList },
+  { to: '/learning-path', label: 'Learning path', icon: Map },
+  { to: '/coach', label: 'AI coach', icon: MessageCircle },
+  { to: '/profile', label: 'Profile', icon: UserRound },
+];
+
+export default function Sidebar({ isOpen, onClose }) {
   const { logout } = useAuth();
-
-  const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/assessment', label: 'Assessment', icon: ClipboardList },
-    { path: '/learning-path', label: 'Learning Path', icon: Map },
-    { path: '/coach', label: 'Coach', icon: MessageCircle },
-    { path: '/profile', label: 'Profile', icon: UserRound },
-  ];
-
-  const isActive = (path) => {
-    if (path === '/assessment') {
-      return location.pathname === '/assessment' || location.pathname.startsWith('/assessment/');
-    }
-    return location.pathname === path;
-  };
+  const { level } = useProgress();
 
   return (
     <>
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+        <button
+          type="button"
+          className="fixed inset-0 z-30 bg-bg/60 lg:hidden"
           onClick={onClose}
+          aria-label="Close navigation"
         />
       )}
-
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-ink border-r border-white/10 z-50 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0`}
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-line bg-elev lg:w-64 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        } transition-transform duration-300`}
       >
-        <div className="flex flex-col h-full">
-          <div className="px-6 py-7 border-b border-white/10">
-            <Link to="/dashboard" className="font-serif text-xl text-cream tracking-tight" onClick={onClose}>
-              SkillSync
-            </Link>
+        <div className="flex items-center gap-3 px-5 py-6">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold to-violet text-bg">
+            <Sparkles size={16} />
           </div>
+          <span className="font-serif text-xl">SkillSync</span>
+        </div>
 
-          <nav className="flex-1 p-4 space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.path);
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={onClose}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                    active
-                      ? 'bg-gold-faint text-gold'
-                      : 'text-muted hover:text-cream hover:bg-white/5'
-                  }`}
-                >
-                  <Icon size={18} strokeWidth={1.6} />
-                  <span className={active ? 'font-medium' : ''}>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+        <nav className="flex-1 space-y-1 px-3">
+          {links.map((link) => {
+            const Icon = link.icon;
+            return (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                onClick={onClose}
+                className="relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-muted"
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <motion.span
+                        layoutId="nav-active"
+                        className="absolute inset-0 rounded-2xl border border-gold/30 bg-gold/10"
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <Icon size={16} className={`relative z-10 ${isActive ? 'text-gold' : ''}`} />
+                    <span className={`relative z-10 ${isActive ? 'text-gold' : ''}`}>{link.label}</span>
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
+        </nav>
 
-          <div className="p-4 border-t border-white/10">
-            <button
-              onClick={logout}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted hover:text-cream hover:bg-white/5 transition-colors"
-            >
-              <LogOut size={18} strokeWidth={1.6} />
-              <span>Logout</span>
-            </button>
-          </div>
+        <div className="space-y-3 px-4 py-5">
+          <LevelChip level={level.level} title={level.title} />
+          <button
+            type="button"
+            onClick={logout}
+            className="btn-ghost w-full justify-start text-muted hover:text-danger"
+          >
+            <LogOut size={16} /> Sign out
+          </button>
         </div>
       </aside>
     </>
   );
-};
-
-export default Sidebar;
+}

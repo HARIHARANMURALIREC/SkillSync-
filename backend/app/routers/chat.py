@@ -4,6 +4,7 @@ from app.database import get_db
 from app.models import User, Assessment, LearningPath, LearningProgress
 from app.schemas import ChatRequest, ChatResponse
 from app.auth import get_current_user
+from app.streak import get_local_date, record_activity
 from app.ai.gap_analyzer import calculate_skill_gaps
 from app.ai.coach import chat_with_coach
 
@@ -42,6 +43,7 @@ def chat(
     request: ChatRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    local_date: str = Depends(get_local_date),
 ):
     """Chat with the AI career coach."""
     assessments = db.query(Assessment).filter(Assessment.user_id == current_user.id).all()
@@ -67,5 +69,7 @@ def chat(
         messages=messages,
         path_summary=path_summary,
     )
+    record_activity(db, current_user.id, local_date)
+    db.commit()
 
     return ChatResponse(reply=reply)

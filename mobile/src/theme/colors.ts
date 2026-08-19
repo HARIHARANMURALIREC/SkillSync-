@@ -36,6 +36,7 @@ export const colors = {
     inverse: '#0B0C0E',
   },
 
+  rose: '#E8A0A0',
   success: '#6BBF8A',
   warning: '#C8A96A',
   error: '#E57373',

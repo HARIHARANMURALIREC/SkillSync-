@@ -82,12 +82,18 @@ class CareerReadinessResponse(BaseModel):
     total_skills: int
     missing_skills: List[Dict[str, Any]]
 
+class StreakResponse(BaseModel):
+    count: int
+    last: Optional[str] = None
+    dates: List[str] = []
+
 class DashboardResponse(BaseModel):
     user: UserResponse
     skill_radar: List[SkillRadarData]
     skill_gaps: List[SkillGapResponse]
     progress_summary: Dict[str, Any]
     career_readiness: Optional[CareerReadinessResponse] = None
+    streak: Optional[StreakResponse] = None
 
 # Learning Path Schemas
 class LearningResource(BaseModel):

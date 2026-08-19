@@ -1,30 +1,24 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { MessageCircle, Send } from 'lucide-react';
 import api, { getApiErrorMessage } from '../services/api';
-import { Send, MessageCircle } from 'lucide-react';
 
-const STARTER_PROMPTS = [
+const STARTERS = [
   'What should I focus on this week?',
   'Explain my biggest skill gap',
   'How do I prepare for a reassessment?',
+  'Suggest a project to practise with',
 ];
 
-function CoachMessage({ content, className }) {
+function Bubble({ content, role }) {
   const lines = (content || '').split('\n');
   return (
-    <div className={`${className} whitespace-pre-wrap`}>
+    <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+      role === 'user' ? 'bg-gold/20 border border-gold/30 text-fg' : 'bg-surface2 border border-line text-muted'
+    }`}>
       {lines.map((line, i) => {
-        const isHeading = /^(Focus|Plan|Check[-‑]?in|Next)$/i.test(line.trim());
+        const heading = /^(Focus|Plan|Check[-‑]?in|Next)$/i.test(line.trim());
         return (
-          <p
-            key={i}
-            className={
-              isHeading
-                ? 'mt-3 first:mt-0 text-xs uppercase tracking-wider text-gold'
-                : line.trim()
-                  ? 'mt-1'
-                  : 'h-2'
-            }
-          >
+          <p key={i} className={heading ? 'mt-2 first:mt-0 text-xs uppercase tracking-wider text-gold' : 'mt-1'}>
             {line}
           </p>
         );
@@ -44,111 +38,74 @@ const CoachChat = () => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const sendMessage = async (text) => {
+  const send = async (text) => {
     const content = (text || input).trim();
     if (!content || loading) return;
-
-    const userMessage = { role: 'user', content };
-    const nextMessages = [...messages, userMessage];
-    setMessages(nextMessages);
+    const next = [...messages, { role: 'user', content }];
+    setMessages(next);
     setInput('');
     setLoading(true);
     setError(null);
-
     try {
-      const response = await api.post('/api/chat', { messages: nextMessages });
-      setMessages([...nextMessages, { role: 'assistant', content: response.data.reply }]);
+      const r = await api.post('/api/chat', { messages: next });
+      setMessages([...next, { role: 'assistant', content: r.data.reply }]);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Failed to get a response from the coach.'));
+      setError(getApiErrorMessage(err, 'Ollama is not running. Start it with `ollama serve`. SkillSync uses the mistral:latest model.'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] max-h-[720px]">
-      <div className="mb-6">
+    <div className="flex h-[calc(100vh-9rem)] max-h-[820px] flex-col">
+      <div className="mb-4">
         <p className="page-kicker">Guide</p>
-        <h1 className="page-title">Career coach</h1>
-        <p className="mt-3 text-muted max-w-xl">
-          Ask about your gaps, learning path, and next steps. Groq primary, Ollama fallback.
-        </p>
+        <h1 className="page-title">AI coach</h1>
+        <p className="mt-2 text-muted">Mistral via Ollama on your machine. Plans stay private.</p>
       </div>
-
-      <div className="card flex-1 flex flex-col min-h-0">
-        <div className="flex-1 overflow-y-auto space-y-4 p-1 mb-4">
+      <div className="card flex min-h-0 flex-1 flex-col">
+        <div className="flex-1 space-y-4 overflow-y-auto p-1">
           {messages.length === 0 && (
-            <div className="text-center py-8">
-              <MessageCircle size={32} className="mx-auto text-gold/60 mb-4" strokeWidth={1.5} />
-              <p className="text-muted text-sm mb-6">Start a conversation or pick a prompt:</p>
+            <div className="py-8 text-center">
+              <MessageCircle className="mx-auto mb-4 text-gold" />
               <div className="flex flex-wrap justify-center gap-2">
-                {STARTER_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => sendMessage(prompt)}
-                    className="btn-secondary text-sm py-2 px-4"
-                  >
-                    {prompt}
+                {STARTERS.map((p) => (
+                  <button key={p} type="button" className="btn-secondary text-sm" onClick={() => send(p)}>
+                    {p}
                   </button>
                 ))}
               </div>
             </div>
           )}
-
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <CoachMessage
-                content={msg.content}
-                className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-gold text-ink'
-                    : 'bg-white/5 border border-white/10 text-cream'
-                }`}
-              />
+          {messages.map((m, i) => (
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <Bubble {...m} />
             </div>
           ))}
-
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-muted">
-                Thinking…
+              <div className="rounded-2xl border border-line bg-surface2 px-4 py-3 text-muted">
+                <span className="inline-flex gap-1">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold delay-75" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold delay-150" />
+                </span>
               </div>
             </div>
           )}
-
           <div ref={bottomRef} />
         </div>
-
-        {error && (
-          <p className="text-red-300 text-sm mb-3">{error}</p>
-        )}
-
+        {error && <p className="mb-3 text-sm text-danger">{error}</p>}
         <form
+          className="flex gap-3 border-t border-line pt-4"
           onSubmit={(e) => {
             e.preventDefault();
-            sendMessage();
+            send();
           }}
-          className="flex gap-3 border-t border-white/10 pt-4"
         >
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask your coach…"
-            className="input-field flex-1"
-            disabled={loading}
-          />
-          <button
-            type="submit"
-            disabled={loading || !input.trim()}
-            className="btn-primary px-4"
-            aria-label="Send message"
-          >
-            <Send size={18} />
+          <input className="input-field flex-1" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask your coach…" disabled={loading} />
+          <button className="btn-primary px-4" disabled={loading || !input.trim()} type="submit" aria-label="Send">
+            <Send size={16} />
           </button>
         </form>
       </div>

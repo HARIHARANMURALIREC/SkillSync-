@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, Assessment, SkillGap, LearningPath, LearningProgress
-from app.schemas import DashboardResponse, UserResponse, SkillRadarData, SkillGapResponse, CareerReadinessResponse
+from app.schemas import DashboardResponse, UserResponse, SkillRadarData, SkillGapResponse, CareerReadinessResponse, StreakResponse
 from app.auth import get_current_user
+from app.streak import get_local_date, record_activity
 from app.ai.gap_analyzer import calculate_skill_gaps, get_skill_gap_summary, get_career_requirements
 from app.ai.recommender import calculate_career_readiness
 
@@ -51,7 +52,8 @@ def _compute_path_completion(db: Session, user_id: int) -> dict:
 @router.get("", response_model=DashboardResponse)
 def get_dashboard(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    local_date: str = Depends(get_local_date),
 ):
     """Get dashboard data for current user."""
     assessments = db.query(Assessment).filter(Assessment.user_id == current_user.id).all()
@@ -116,10 +118,14 @@ def get_dashboard(
         readiness_data = calculate_career_readiness(user_skills, requirements)
         career_readiness = CareerReadinessResponse(**readiness_data)
 
+    streak = record_activity(db, current_user.id, local_date)
+    db.commit()
+
     return DashboardResponse(
         user=UserResponse.model_validate(current_user),
         skill_radar=skill_radar,
         skill_gaps=skill_gaps,
         progress_summary=progress_summary,
-        career_readiness=career_readiness
+        career_readiness=career_readiness,
+        streak=StreakResponse(**streak),
     )

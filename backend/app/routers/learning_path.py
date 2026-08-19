@@ -14,6 +14,7 @@ from app.schemas import (
     ProgressItem,
 )
 from app.auth import get_current_user
+from app.streak import get_local_date, record_activity
 from app.ai.gap_analyzer import calculate_skill_gaps, get_career_requirements
 from app.ai.learning_path_engine import generate_learning_path, sanitize_week_resources
 from app.ai.recommender import adapt_learning_path
@@ -326,7 +327,8 @@ def get_progress(
 def toggle_progress(
     toggle: ProgressToggle,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    local_date: str = Depends(get_local_date),
 ):
     """Toggle completion of a learning resource."""
     learning_paths = db.query(LearningPath).filter(
@@ -361,6 +363,7 @@ def toggle_progress(
                 week_number=toggle.week_number,
                 resource_index=toggle.resource_index,
             ))
+        record_activity(db, current_user.id, local_date)
     else:
         if existing:
             db.delete(existing)

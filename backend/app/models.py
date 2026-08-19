@@ -74,6 +74,21 @@ class LearningProgress(Base):
     user = relationship("User")
 
 
+class UserActivity(Base):
+    """One calendar day of learning activity per user (streak heat map)."""
+    __tablename__ = "user_activity"
+    __table_args__ = (
+        UniqueConstraint("user_id", "activity_date", name="uq_user_activity_day"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    activity_date = Column(String, nullable=False)  # YYYY-MM-DD in the user's local calendar
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+
 class MCQQuestion(Base):
     __tablename__ = "mcq_questions"
     

@@ -1,143 +1,141 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import api, { getApiErrorMessage } from '../services/api';
-import { CardSkeleton } from '../components/LoadingSkeleton';
+import LoadingSkeleton from '../components/ui/LoadingSkeleton';
+import { useToast } from '../context/ToastContext';
+import { EASE } from '../hooks/useReducedMotion';
+
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 const MCQTest = () => {
   const { skillName } = useParams();
   const navigate = useNavigate();
+  const { error: toastError } = useToast();
   const [questions, setQuestions] = useState([]);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [dir, setDir] = useState(1);
 
   useEffect(() => {
-    fetchQuestions();
+    api.get(`/api/assessment/questions/${skillName}`)
+      .then((r) => setQuestions(r.data))
+      .finally(() => setLoading(false));
   }, [skillName]);
 
-  const fetchQuestions = async () => {
-    try {
-      const response = await api.get(`/api/assessment/questions/${skillName}`);
-      setQuestions(response.data);
-    } catch (error) {
-      console.error('Failed to fetch questions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
 
-  const handleAnswer = (questionId, optionId) => {
-    setAnswers({
-      ...answers,
-      [questionId]: optionId,
-    });
-  };
+  useEffect(() => {
+    const onKey = (e) => {
+      const q = questions[current];
+      if (!q) return;
+      const idx = LETTERS.indexOf(e.key.toUpperCase());
+      if (idx >= 0 && q.options[idx]) setAnswers((a) => ({ ...a, [q.id]: q.options[idx].id }));
+      if (e.key === 'ArrowRight' && current < questions.length - 1) {
+        setDir(1);
+        setCurrent((c) => c + 1);
+      }
+      if (e.key === 'ArrowLeft' && current > 0) {
+        setDir(-1);
+        setCurrent((c) => c - 1);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [questions, current]);
 
-  const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-    }
-  };
-
-  const handleSubmit = async () => {
+  const submit = async () => {
     setSubmitting(true);
     try {
-      const response = await api.post('/api/assessment/submit', {
-        skill_name: skillName,
-        answers: answers,
-      });
-      navigate('/assessment-result', { state: { result: response.data } });
-    } catch (error) {
-      console.error('Failed to submit assessment:', error);
-      alert(getApiErrorMessage(error, 'Failed to submit assessment. Please try again.'));
+      const response = await api.post('/api/assessment/submit', { skill_name: skillName, answers });
+      navigate('/assessment-result', { state: { result: response.data, elapsed } });
+    } catch (err) {
+      toastError(getApiErrorMessage(err, 'Failed to submit assessment.'));
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
-    return <CardSkeleton />;
-  }
+  if (loading) return <LoadingSkeleton />;
+  if (!questions.length) return <div className="card">No questions for this skill.</div>;
 
-  if (questions.length === 0) {
-    return (
-      <div className="card text-center py-16">
-        <p className="text-muted">No questions available for this skill.</p>
-      </div>
-    );
-  }
-
-  const question = questions[currentQuestion];
-  const progress = ((currentQuestion + 1) / questions.length) * 100;
-  const answeredCount = Object.keys(answers).length;
+  const question = questions[current];
+  const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const secs = String(elapsed % 60).padStart(2, '0');
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="mx-auto max-w-2xl">
       <p className="page-kicker">{skillName}</p>
-      <div className="card">
-        <div className="mb-8">
-          <div className="flex justify-between text-xs uppercase tracking-wider text-muted mb-3">
-            <span>Question {currentQuestion + 1} of {questions.length}</span>
-            <span>{answeredCount} answered</span>
-          </div>
-          <div className="w-full bg-white/10 rounded-full h-1">
-            <div
-              className="bg-gold h-1 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-
-        <h2 className="font-serif text-2xl mb-6 leading-snug">{question.question_text}</h2>
-        <div className="space-y-3 mb-10">
-          {question.options.map((option) => {
-            const selected = answers[question.id] === option.id;
-            return (
-              <button
-                key={option.id}
-                onClick={() => handleAnswer(question.id, option.id)}
-                className={`w-full text-left p-4 rounded-xl border transition-colors ${
-                  selected
-                    ? 'border-gold bg-gold-faint text-cream'
-                    : 'border-white/10 hover:border-white/20 text-cream/90'
-                }`}
-              >
-                {option.text}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex justify-between">
-          <button
-            onClick={handlePrevious}
-            disabled={currentQuestion === 0}
-            className="btn-secondary"
-          >
-            Previous
-          </button>
-          {currentQuestion === questions.length - 1 ? (
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || answeredCount < questions.length}
-              className="btn-primary"
-            >
-              {submitting ? 'Submitting…' : 'Submit'}
-            </button>
-          ) : (
-            <button onClick={handleNext} className="btn-primary">
-              Next
-            </button>
-          )}
-        </div>
+      <div className="mb-4 flex justify-between font-mono text-sm text-muted">
+        <span>{current + 1} / {questions.length}</span>
+        <span className="tabular">{mins}:{secs}</span>
       </div>
+      <div className="mb-6 h-1 rounded-full bg-line">
+        <div className="h-full rounded-full bg-gold" style={{ width: `${((current + 1) / questions.length) * 100}%` }} />
+      </div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={question.id}
+          initial={{ opacity: 0, x: dir * 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: dir * -24 }}
+          transition={{ duration: 0.35, ease: EASE }}
+          className="card"
+        >
+          <h2 className="font-serif text-2xl mb-6">{question.question_text}</h2>
+          <div className="space-y-3">
+            {question.options.map((option, i) => {
+              const selected = answers[question.id] === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setAnswers({ ...answers, [question.id]: option.id })}
+                  className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left ${
+                    selected ? 'border-gold bg-gold/10' : 'border-line hover:border-gold/40'
+                  }`}
+                >
+                  <span className="font-mono text-gold">{LETTERS[i]}</span>
+                  {option.text}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-8 flex justify-between">
+            <button
+              className="btn-secondary"
+              disabled={current === 0}
+              onClick={() => {
+                setDir(-1);
+                setCurrent((c) => c - 1);
+              }}
+            >
+              Previous
+            </button>
+            {current === questions.length - 1 ? (
+              <button className="btn-primary" onClick={submit} disabled={submitting || Object.keys(answers).length < questions.length}>
+                {submitting ? 'Submitting…' : 'Submit'}
+              </button>
+            ) : (
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  setDir(1);
+                  setCurrent((c) => c + 1);
+                }}
+              >
+                Next
+              </button>
+            )}
+          </div>
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 };

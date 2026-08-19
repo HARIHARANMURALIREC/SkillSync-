@@ -28,7 +28,7 @@ const SkillGapTable = ({ gaps }) => {
       case 'High':
         return 'text-gold border-gold/40';
       case 'Medium':
-        return 'text-cream/80 border-white/20';
+        return 'text-fg/80 border-line';
       case 'Low':
         return 'text-muted border-white/10';
       default:
@@ -43,7 +43,7 @@ const SkillGapTable = ({ gaps }) => {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-white/10">
+            <tr className="border-b border-line">
               {['Skill', 'Current', 'Target', 'Gap', 'Priority'].map((h) => (
                 <th
                   key={h}
@@ -58,13 +58,13 @@ const SkillGapTable = ({ gaps }) => {
             {gaps.map((gap, index) => (
               <React.Fragment key={index}>
                 <tr
-                  className="border-b border-white/5 hover:bg-white/[0.03] cursor-pointer"
+                  className="border-b border-line/60 hover:bg-surface2 cursor-pointer"
                   onClick={() => setExpandedSkill(expandedSkill === index ? null : index)}
                 >
-                  <td className="px-3 py-4 text-sm text-cream">{gap.skill_name}</td>
+                  <td className="px-3 py-4 text-sm text-fg">{gap.skill_name}</td>
                   <td className="px-3 py-4 text-sm text-muted">{gap.current_level.toFixed(1)}</td>
                   <td className="px-3 py-4 text-sm text-muted">{gap.target_level.toFixed(1)}</td>
-                  <td className="px-3 py-4 text-sm text-cream">
+                  <td className="px-3 py-4 text-sm text-fg">
                     {gap.gap > 0 ? `+${gap.gap.toFixed(1)}` : gap.gap.toFixed(1)}
                   </td>
                   <td className="px-3 py-4">
@@ -75,13 +75,13 @@ const SkillGapTable = ({ gaps }) => {
                 </tr>
                 {expandedSkill === index && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-4 bg-gold-faint">
+                    <td colSpan={5} className="px-3 py-4 bg-gold/10">
                       {gap.explanation && gap.explanation.length > 0 && (
                         <>
                           <p className="text-xs uppercase tracking-wider text-gold mb-2">Why this gap</p>
                           <ul className="space-y-1 mb-4">
                             {gap.explanation.map((exp, expIdx) => (
-                              <li key={expIdx} className="text-sm text-cream/80">
+                              <li key={expIdx} className="text-sm text-fg/80">
                                 {exp}
                               </li>
                             ))}

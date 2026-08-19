@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { theme } from '../theme';
+import { useProgress } from '../context/ProgressContext';
 
 interface AssessmentResultScreenProps {
   navigation: any;
@@ -24,6 +25,11 @@ export const AssessmentResultScreen: React.FC<AssessmentResultScreenProps> = ({
   route,
 }) => {
   const { result } = route.params;
+  const { refreshProgress } = useProgress();
+
+  useEffect(() => {
+    refreshProgress().catch(() => {});
+  }, []);
 
   const getLevelColor = (level: string) => {
     switch (level.toLowerCase()) {

@@ -9,21 +9,22 @@ const api = axios.create({
   },
 });
 
-// Add token to requests
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+function localDateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
-// Handle token expiration
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  config.headers['X-Local-Date'] = localDateKey();
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -39,13 +40,13 @@ export function getApiErrorMessage(error, fallback = 'Something went wrong. Plea
   const status = error.response?.status;
   const detail = error.response?.data?.detail;
   if (status === 503) {
-    return detail || 'AI is unavailable. Check GROQ_API_KEY and start Ollama with `ollama serve`.';
+    return (
+      detail ||
+      'Ollama is not running. Start it with `ollama serve`. SkillSync uses the mistral:latest model.'
+    );
   }
-  if (typeof detail === 'string' && detail) {
-    return detail;
-  }
+  if (typeof detail === 'string' && detail) return detail;
   return fallback;
 }
 
 export default api;
-

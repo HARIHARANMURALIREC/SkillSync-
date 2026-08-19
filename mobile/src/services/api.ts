@@ -49,6 +49,13 @@ const api = axios.create({
   timeout: 30000,
 });
 
+function localDateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -56,6 +63,7 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      config.headers['X-Local-Date'] = localDateKey();
     } catch (error) {
       console.error('Error getting token:', error);
     }

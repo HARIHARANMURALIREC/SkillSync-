@@ -15,12 +15,14 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import api, { getApiErrorMessage } from '../services/api';
 import { theme } from '../theme';
 import { LearningPathData, WeeklyPath } from '../types';
+import { useProgress } from '../context/ProgressContext';
 
 interface LearningPathScreenProps {
   navigation: any;
 }
 
 export const LearningPathScreen: React.FC<LearningPathScreenProps> = () => {
+  const { refreshProgress } = useProgress();
   const [learningPath, setLearningPath] = useState<LearningPathData | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -54,6 +56,7 @@ export const LearningPathScreen: React.FC<LearningPathScreenProps> = () => {
         timeout: 120000,
       });
       setLearningPath(response.data);
+      refreshProgress().catch(() => {});
     } catch (error: any) {
       alert(getApiErrorMessage(error, 'Failed to generate learning path'));
     } finally {
@@ -147,6 +150,7 @@ export const LearningPathScreen: React.FC<LearningPathScreenProps> = () => {
           }),
         };
       });
+      refreshProgress().catch(() => {});
     } catch (error: any) {
       setLearningPath(previousPath);
       alert(getApiErrorMessage(error, 'Failed to update progress'));

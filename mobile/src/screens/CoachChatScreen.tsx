@@ -12,6 +12,7 @@ import {
 import api, { getApiErrorMessage } from '../services/api';
 import { theme } from '../theme';
 import { ChatMessage } from '../types';
+import { useProgress } from '../context/ProgressContext';
 
 const STARTER_PROMPTS = [
   'What should I focus on this week?',
@@ -20,6 +21,7 @@ const STARTER_PROMPTS = [
 ];
 
 export const CoachChatScreen: React.FC = () => {
+  const { refreshProgress } = useProgress();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -50,6 +52,7 @@ export const CoachChatScreen: React.FC = () => {
         { timeout: 90000 }
       );
       setMessages([...nextMessages, { role: 'assistant', content: response.data.reply }]);
+      refreshProgress().catch(() => {});
     } catch (err) {
       setError(getApiErrorMessage(err, 'Failed to get a response from the coach.'));
     } finally {

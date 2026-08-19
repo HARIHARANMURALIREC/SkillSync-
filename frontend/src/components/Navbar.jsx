@@ -1,43 +1,41 @@
+import { Link } from 'react-router-dom';
+import { Flame, Menu } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Menu } from 'lucide-react';
+import { useProgress } from '../context/ProgressContext';
+import ThemeToggle from './ui/ThemeToggle';
 
-const Navbar = ({ onMenuClick }) => {
+export default function Navbar({ onMenuClick }) {
   const { user } = useAuth();
-  const initial = (user?.full_name || user?.email || 'U').charAt(0).toUpperCase();
+  const { level, xp, streakDays } = useProgress();
+  const initial = (user?.full_name || user?.email || 'S').charAt(0).toUpperCase();
 
   return (
-    <nav className="sticky top-0 z-30 border-b border-white/10 bg-ink/70 backdrop-blur-xl">
-      <div className="px-6 md:px-10">
-        <div className="flex justify-between h-16 items-center">
-          <button
-            onClick={onMenuClick}
-            className="lg:hidden p-2 rounded-xl text-muted hover:text-cream hover:bg-white/5"
-            aria-label="Open menu"
-          >
-            <Menu size={20} strokeWidth={1.6} />
-          </button>
-
-          <p className="hidden lg:block text-sm text-muted">
-            {user?.career_goal || 'Set a career goal to personalize your path'}
-          </p>
-
-          <div className="flex items-center gap-3 ml-auto">
-            <div className="hidden sm:block text-right">
-              <p className="text-sm text-cream">
-                {user?.full_name || user?.email}
-              </p>
-              {user?.career_goal && (
-                <p className="text-xs text-muted">{user.career_goal}</p>
-              )}
-            </div>
-            <div className="w-9 h-9 rounded-full border border-gold/40 text-gold text-sm flex items-center justify-center">
-              {initial}
-            </div>
-          </div>
-        </div>
+    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg/80 px-4 py-3 backdrop-blur-xl md:px-8">
+      <button type="button" className="btn-ghost lg:hidden" onClick={onMenuClick} aria-label="Open menu">
+        <Menu size={18} />
+      </button>
+      <div className="flex-1 text-sm text-muted">
+        {user?.career_goal ? (
+          <span>Working toward {user.career_goal}</span>
+        ) : (
+          <Link to="/profile" className="text-gold">
+            Set a career goal
+          </Link>
+        )}
       </div>
-    </nav>
+      <span className="chip-muted text-rose hidden sm:inline-flex">
+        <Flame size={12} className="mr-1" /> {streakDays}
+      </span>
+      <span className="chip-gold hidden sm:inline-flex tabular">{Math.round(xp)} XP</span>
+      <ThemeToggle />
+      <div className="flex items-center gap-2">
+        <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-gold to-violet text-sm font-medium text-bg">
+          {initial}
+        </div>
+        <span className="hidden text-xs text-muted md:block">
+          Lv {level.level} · {level.title}
+        </span>
+      </div>
+    </header>
   );
-};
-
-export default Navbar;
+}

@@ -1,9 +1,11 @@
 import React from 'react';
+import { View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useProgress } from '../context/ProgressContext';
 import { theme } from '../theme';
 
 // Screens
@@ -21,6 +23,23 @@ import { LoadingScreen } from '../components/LoadingScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+function DashboardStreakChip() {
+  const { streakDays } = useProgress();
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginRight: 16,
+        gap: 4,
+      }}
+    >
+      <Ionicons name="flame" size={16} color={theme.colors.rose} />
+      <Text style={{ color: theme.colors.rose, fontWeight: '600' }}>{streakDays}</Text>
+    </View>
+  );
+}
 
 function MainTabs() {
   return (
@@ -68,7 +87,10 @@ function MainTabs() {
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
-        options={{ title: 'Dashboard' }}
+        options={{
+          title: 'Dashboard',
+          headerRight: () => <DashboardStreakChip />,
+        }}
       />
       <Tab.Screen
         name="Assessments"

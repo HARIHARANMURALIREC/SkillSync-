@@ -1,22 +1,30 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import api, { getApiErrorMessage } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { useProgress } from '../context/ProgressContext';
 import SkillRadarChart from '../components/RadarChart';
 import SkillGapTable from '../components/SkillGapTable';
-import ProgressCards from '../components/ProgressCards';
 import CareerReadinessCard from '../components/CareerReadinessCard';
 import ExplainabilityPanel from '../components/ExplainabilityPanel';
-import { CardSkeleton } from '../components/LoadingSkeleton';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import LoadingSkeleton from '../components/ui/LoadingSkeleton';
+import EmptyState from '../components/ui/EmptyState';
+import StatCard from '../components/ui/StatCard';
+import LevelCard from '../components/game/LevelCard';
+import StreakCard from '../components/game/StreakCard';
+import BadgeGrid from '../components/game/BadgeGrid';
+
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+};
 
 const Dashboard = () => {
+  const { user } = useAuth();
+  const { level, heat, badges, streakDays } = useProgress();
   const [dashboardData, setDashboardData] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,164 +32,95 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchDashboard();
+    const load = async () => {
+      try {
+        const [dash, hist] = await Promise.all([
+          api.get('/api/dashboard'),
+          api.get('/api/assessment/history').catch(() => ({ data: [] })),
+        ]);
+        setDashboardData(dash.data);
+        setHistory(hist.data || []);
+      } catch (err) {
+        setError(getApiErrorMessage(err, 'Failed to load dashboard.'));
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
-  const fetchDashboard = async () => {
-    try {
-      const [dashboardRes, historyRes] = await Promise.all([
-        api.get('/api/dashboard'),
-        api.get('/api/assessment/history').catch(() => ({ data: [] })),
-      ]);
-      setDashboardData(dashboardRes.data);
-      setHistory(historyRes.data || []);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to fetch dashboard:', err);
-      setError(getApiErrorMessage(err, 'Failed to load dashboard.'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <CardSkeleton />
-        <CardSkeleton />
-      </div>
-    );
-  }
-
+  if (loading) return <LoadingSkeleton />;
   if (error) {
-    return (
-      <div className="card text-center py-16">
-        <p className="text-red-300 mb-6">{error}</p>
-        <button onClick={() => { setLoading(true); fetchDashboard(); }} className="btn-primary">
-          Try again
-        </button>
-      </div>
-    );
+    return <EmptyState title="Could not load dashboard" body={error} action={<button className="btn-primary" onClick={() => window.location.reload()}>Try again</button>} />;
   }
 
-  const hasCareerGoal = dashboardData?.user?.career_goal;
-  const hasAssessments = dashboardData?.progress_summary?.total_assessments > 0;
-  const name = dashboardData?.user?.full_name || dashboardData?.user?.email;
+  const first = (user?.full_name || user?.email || 'there').split(' ')[0];
+  const summary = dashboardData?.progress_summary || {};
+  const highGaps = (dashboardData?.skill_gaps || []).filter((g) => g.priority === 'High').length;
+  const scores = history.map((h) => h.score);
+  const avgScore = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+  const chartData = history.map((entry, idx) => ({ i: idx + 1, score: entry.score, label: entry.skill_name }));
+  const hasGoal = Boolean(dashboardData?.user?.career_goal);
+  const hasAssess = (summary.total_assessments || 0) > 0;
 
-  const chartData = history.map((entry, idx) => ({
-    index: idx + 1,
-    label: entry.skill_name,
-    score: entry.score,
-  }));
+  const next = !hasGoal
+    ? { label: 'Set a career goal', to: '/profile' }
+    : !hasAssess
+      ? { label: 'Take a first assessment', to: '/assessment' }
+      : { label: 'Open your path', to: '/learning-path' };
 
   return (
     <div className="space-y-8">
-      <div>
-        <p className="page-kicker">Overview</p>
-        <h1 className="page-title">
-          {name}
-        </h1>
-        <p className="mt-3 text-muted">
-          {hasCareerGoal
-            ? `Working toward ${dashboardData.user.career_goal}`
-            : 'Set a career goal to personalize recommendations'}
-        </p>
-      </div>
-
-      <ProgressCards summary={dashboardData?.progress_summary} />
-
-      {dashboardData?.career_readiness && (
-        <CareerReadinessCard readiness={dashboardData.career_readiness} />
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SkillRadarChart data={dashboardData?.skill_radar} />
-
-        <div className="card flex flex-col justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-wider text-muted mb-2">Next step</p>
-            <h3 className="font-serif text-2xl mb-3">Quick actions</h3>
-            <p className="text-sm text-muted mb-8">
-              Keep the loop moving: goal, assessment, then a generated path.
-            </p>
-          </div>
-          <div className="space-y-3">
-            {!hasCareerGoal && (
-              <button onClick={() => navigate('/profile')} className="btn-primary w-full">
-                Set career goal
-              </button>
-            )}
-            {!hasAssessments && (
-              <button onClick={() => navigate('/assessment')} className="btn-primary w-full">
-                Take an assessment
-              </button>
-            )}
-            {hasCareerGoal && hasAssessments && (
-              <button onClick={() => navigate('/learning-path')} className="btn-primary w-full">
-                View learning path
-              </button>
-            )}
-            <button onClick={() => navigate('/coach')} className="btn-secondary w-full">
-              Ask your coach
-            </button>
-          </div>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="page-kicker">{greeting()}</p>
+          <h1 className="page-title">{first}</h1>
         </div>
+        <button className="btn-primary" onClick={() => navigate(next.to)}>{next.label}</button>
       </div>
 
-      {chartData.length > 1 && (
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Assessments" value={summary.total_assessments || 0} tone="gold" spark={scores} />
+        <StatCard label="Average score" value={avgScore} suffix=" /10" tone="violet" spark={scores} />
+        <StatCard label="Path completion" value={summary.path_completion_pct || 0} suffix="%" tone="teal" />
+        <StatCard label="High-priority gaps" value={highGaps} tone="rose" />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <LevelCard level={level} />
+        <StreakCard days={streakDays} heat={heat} />
+      </div>
+
+      {dashboardData?.career_readiness && <CareerReadinessCard readiness={dashboardData.career_readiness} />}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SkillRadarChart data={dashboardData?.skill_radar} />
         <div className="card">
-          <p className="text-xs uppercase tracking-wider text-muted mb-2">Trend</p>
-          <h3 className="font-serif text-2xl mb-6">Assessment history</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <p className="section-label mb-4">Score trend</p>
+          {chartData.length ? (
+            <ResponsiveContainer width="100%" height={260}>
               <LineChart data={chartData}>
-                <XAxis
-                  dataKey="index"
-                  tick={{ fill: '#a8a29e', fontSize: 12 }}
-                  axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-                  tickLine={false}
-                />
-                <YAxis
-                  domain={[0, 10]}
-                  tick={{ fill: '#a8a29e', fontSize: 12 }}
-                  axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: '#1a1814',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '12px',
-                  }}
-                  labelFormatter={(_, payload) =>
-                    payload?.[0]?.payload?.label ? `${payload[0].payload.label}` : ''
-                  }
-                />
-                <Line
-                  type="monotone"
-                  dataKey="score"
-                  stroke="#c9a227"
-                  strokeWidth={2}
-                  dot={{ fill: '#c9a227', r: 4 }}
-                />
+                <XAxis dataKey="i" stroke="rgb(var(--muted))" />
+                <YAxis domain={[0, 10]} stroke="rgb(var(--muted))" />
+                <Tooltip />
+                <Line type="monotone" dataKey="score" stroke="rgb(var(--gold))" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
-          </div>
+          ) : (
+            <p className="text-muted">No history yet.</p>
+          )}
         </div>
-      )}
+      </div>
 
       <SkillGapTable gaps={dashboardData?.skill_gaps} />
-
-      {dashboardData?.skill_gaps && dashboardData.skill_gaps.length > 0 && (
-        <ExplainabilityPanel
-          explanations={[
-            `Based on your career goal: ${dashboardData.user.career_goal}`,
-            `${dashboardData.skill_gaps.filter((g) => g.priority === 'High').length} high priority skills identified`,
-            'Skills are prioritized by gap size and career requirements',
-          ]}
-          title="How these recommendations are made"
-        />
-      )}
+      <ExplainabilityPanel
+        explanations={
+          highGaps
+            ? [`${highGaps} high priority skills identified`, 'Skills are prioritized by gap size and career requirements']
+            : []
+        }
+      />
+      <BadgeGrid badges={badges} />
     </div>
   );
 };

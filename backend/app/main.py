@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from app.database import engine, Base
-from app.routers import auth, assessment, dashboard, learning_path, profile, chat
+from app.routers import auth, assessment, dashboard, learning_path, profile, chat, streak
 from app.ai.ollama_client import llm_status, warm_model
 import traceback
 import threading
@@ -51,6 +51,7 @@ app.include_router(dashboard.router)
 app.include_router(learning_path.router)
 app.include_router(profile.router)
 app.include_router(chat.router)
+app.include_router(streak.router)
 
 
 @app.on_event("startup")

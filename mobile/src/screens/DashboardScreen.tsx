@@ -4,49 +4,20 @@ import { Card } from '../components/Card';
 import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/Button';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { StreakCard } from '../components/StreakCard';
+import { LevelCard } from '../components/LevelCard';
+import { BadgeGrid } from '../components/BadgeGrid';
 import api from '../services/api';
 import { theme } from '../theme';
-import { useAuth } from '../context/AuthContext';
+import { useProgress } from '../context/ProgressContext';
 import { AssessmentHistoryEntry, SkillInfo } from '../types';
 
 interface DashboardScreenProps {
   navigation: any;
 }
 
-interface DashboardData {
-  user: {
-    email: string;
-    full_name?: string;
-    career_goal?: string;
-  };
-  progress_summary: {
-    total_assessments: number;
-    skills_assessed: number;
-    path_completion_pct?: number;
-    resources_completed?: number;
-    total_resources?: number;
-    gap_summary?: {
-      high_priority_gaps?: number;
-    };
-  };
-  skill_gaps: Array<{
-    skill_name: string;
-    current_level: number;
-    target_level: number;
-    gap: number;
-    priority: string;
-    explanation?: string[];
-  }>;
-  career_readiness?: {
-    score: number;
-    completed_skills: number;
-    total_skills: number;
-  };
-}
-
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
-  const { user: authUser } = useAuth();
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const { summary: dashboardData, streakDays, heat, badges, level, refreshProgress } = useProgress();
   const [history, setHistory] = useState<AssessmentHistoryEntry[]>([]);
   const [assessableSkills, setAssessableSkills] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -58,12 +29,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
 
   const fetchDashboard = async () => {
     try {
-      const [dashboardRes, historyRes, skillsRes] = await Promise.all([
-        api.get('/api/dashboard'),
+      await refreshProgress();
+      const [historyRes, skillsRes] = await Promise.all([
         api.get('/api/assessment/history').catch(() => ({ data: [] })),
         api.get('/api/assessment/skills').catch(() => ({ data: [] })),
       ]);
-      setDashboardData(dashboardRes.data);
       setHistory(historyRes.data || []);
       setAssessableSkills(new Set((skillsRes.data || []).map((s: SkillInfo) => s.name)));
     } catch (error) {
@@ -106,6 +76,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             : 'Set a career goal to personalize recommendations'
         }
       />
+
+      <LevelCard level={level} />
+      <StreakCard days={streakDays} heat={heat} />
 
       <View style={styles.progressRow}>
         <Card style={styles.progressCard}>
@@ -157,6 +130,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
           </View>
         </Card>
       )}
+
+      <BadgeGrid badges={badges} />
 
       <Card>
         <Text style={styles.cardTitle}>Quick Actions</Text>

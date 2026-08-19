@@ -11,6 +11,7 @@ from app.schemas import (
     AssessmentHistoryEntry,
 )
 from app.auth import get_current_user
+from app.streak import get_local_date, record_activity
 from app.ai.skill_evaluator import calculate_skill_score, classify_skill_level, generate_assessment_breakdown
 from app.ai.gap_analyzer import peek_cached_requirements
 
@@ -44,7 +45,8 @@ def get_questions(skill_name: str, db: Session = Depends(get_db)):
 def submit_assessment(
     submission: AssessmentSubmission,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    local_date: str = Depends(get_local_date),
 ):
     """Submit assessment answers and get results."""
     questions = db.query(MCQQuestion).filter(MCQQuestion.skill_name == submission.skill_name).all()
@@ -78,6 +80,7 @@ def submit_assessment(
         answers=submission.answers
     )
     db.add(assessment)
+    record_activity(db, current_user.id, local_date)
     db.commit()
     
     return AssessmentResult(

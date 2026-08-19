@@ -1,167 +1,99 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import LoadingSkeleton from '../components/ui/LoadingSkeleton';
+
+const GOALS = [
+  'Software Engineer',
+  'Data Scientist',
+  'Frontend Developer',
+  'Backend Developer',
+  'Full Stack Developer',
+];
+
+const pace = (h) => {
+  if (h <= 5) return 'Light';
+  if (h <= 10) return 'Steady';
+  if (h <= 18) return 'Focused';
+  return 'Intensive';
+};
 
 const Profile = () => {
-  const { user: authUser } = useAuth();
-  const [formData, setFormData] = useState({
-    full_name: '',
-    career_goal: '',
-    hours_per_week: 10,
-  });
+  const [form, setForm] = useState({ full_name: '', career_goal: '', hours_per_week: 10 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const { success, error } = useToast();
   const navigate = useNavigate();
 
-  const careerGoals = [
-    'Software Engineer',
-    'Data Scientist',
-    'Frontend Developer',
-    'Backend Developer',
-    'Full Stack Developer',
-  ];
-
   useEffect(() => {
-    loadProfile();
+    api.get('/api/profile').then((r) => {
+      setForm({
+        full_name: r.data.full_name || '',
+        career_goal: r.data.career_goal || '',
+        hours_per_week: r.data.hours_per_week || 10,
+      });
+    }).finally(() => setLoading(false));
   }, []);
 
-  const loadProfile = async () => {
-    try {
-      const response = await api.get('/api/profile');
-      const user = response.data;
-      setFormData({
-        full_name: user.full_name || '',
-        career_goal: user.career_goal || '',
-        hours_per_week: user.hours_per_week || 10,
-      });
-    } catch (error) {
-      console.error('Failed to load profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
+  const save = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setMessage('');
-
     try {
-      await api.put('/api/profile', formData);
-      setMessage('Profile updated successfully!');
-      if (authUser) {
-        await api.get('/api/auth/me');
-      }
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
-    } catch (error) {
-      setMessage('Failed to update profile. Please try again.');
-      console.error('Failed to update profile:', error);
+      await api.put('/api/profile', form);
+      success('Profile saved.');
+      navigate('/dashboard');
+    } catch {
+      error('Failed to update profile.');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="card animate-pulse">
-        <div className="h-6 bg-white/10 rounded w-1/4 mb-4"></div>
-        <div className="h-4 bg-white/10 rounded w-3/4"></div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingSkeleton />;
 
   return (
-    <div className="max-w-xl">
-      <p className="page-kicker">Account</p>
-      <h1 className="page-title mb-8">Profile</h1>
-
-      <div className="card">
-        {message && (
-          <div
-            className={`mb-6 p-4 rounded-xl text-sm ${
-              message.includes('success')
-                ? 'border border-gold/30 text-gold'
-                : 'border border-red-400/30 text-red-200'
-            }`}
-          >
-            {message}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="full_name" className="block text-xs uppercase tracking-wider text-muted mb-2">
-              Full name
-            </label>
-            <input
-              id="full_name"
-              type="text"
-              className="input-field"
-              value={formData.full_name}
-              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="career_goal" className="block text-xs uppercase tracking-wider text-muted mb-2">
-              Career goal
-            </label>
-            <select
-              id="career_goal"
-              className="input-field"
-              value={formData.career_goal}
-              onChange={(e) => setFormData({ ...formData, career_goal: e.target.value })}
-            >
-              <option value="">Select a career goal</option>
-              {careerGoals.map((goal) => (
-                <option key={goal} value={goal}>
-                  {goal}
-                </option>
-              ))}
-            </select>
-            <p className="mt-2 text-sm text-muted">
-              Used to generate skill targets and weekly plans.
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="hours_per_week" className="block text-xs uppercase tracking-wider text-muted mb-2">
-              Hours per week
-            </label>
-            <input
-              id="hours_per_week"
-              type="number"
-              min="1"
-              max="40"
-              className="input-field"
-              value={formData.hours_per_week}
-              onChange={(e) =>
-                setFormData({ ...formData, hours_per_week: parseInt(e.target.value) || 10 })
-              }
-            />
-            <p className="mt-2 text-sm text-muted">
-              Keeps the weekly plan realistic.
-            </p>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard')}
-              className="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button type="submit" disabled={saving} className="btn-primary">
-              {saving ? 'Saving…' : 'Save changes'}
-            </button>
-          </div>
-        </form>
+    <div className="max-w-2xl space-y-8">
+      <div>
+        <p className="page-kicker">Account</p>
+        <h1 className="page-title">Profile</h1>
       </div>
+      <form onSubmit={save} className="space-y-8">
+        <div>
+          <label className="label">Full name</label>
+          <input className="input-field mt-2" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
+        </div>
+        <div>
+          <p className="label mb-3">Career goal</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {GOALS.map((goal) => (
+              <button
+                key={goal}
+                type="button"
+                onClick={() => setForm({ ...form, career_goal: goal })}
+                className={`card text-left ${form.career_goal === goal ? 'border-gold' : ''}`}
+              >
+                {goal}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="flex justify-between">
+            <label className="label">Hours per week</label>
+            <span className="chip-gold">{pace(form.hours_per_week)} · {form.hours_per_week}h</span>
+          </div>
+          <input
+            type="range"
+            min="2"
+            max="30"
+            className="mt-4 w-full accent-[rgb(var(--gold))]"
+            value={form.hours_per_week}
+            onChange={(e) => setForm({ ...form, hours_per_week: Number(e.target.value) })}
+          />
+        </div>
+        <button className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+      </form>
     </div>
   );
 };
