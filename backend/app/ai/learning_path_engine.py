@@ -1,139 +1,21 @@
 """
 Learning path generator.
 
-The LLM chooses week order and skills. Resource URLs always come from a
-curated catalog of real docs and courses so links never go to invented pages.
+The LLM chooses weeks, skills, and resource titles/URLs. Only https links on
+known education/docs hosts are kept. There is no per-skill URL catalog.
 """
 
 from typing import List, Optional
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse
 
+import httpx
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.ai.ollama_client import chat_json
 
-LEARNING_RESOURCES = {
-    "Python": [
-        {"title": "Python Official Tutorial", "type": "article", "url": "https://docs.python.org/3/tutorial/", "estimated_hours": 8},
-        {"title": "Real Python Tutorials", "type": "article", "url": "https://realpython.com/", "estimated_hours": 6},
-        {"title": "Python for Everybody (Coursera)", "type": "course", "url": "https://www.coursera.org/specializations/python", "estimated_hours": 10},
-    ],
-    "JavaScript": [
-        {"title": "JavaScript.info Modern Tutorial", "type": "article", "url": "https://javascript.info/", "estimated_hours": 8},
-        {"title": "MDN JavaScript Guide", "type": "article", "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide", "estimated_hours": 6},
-        {"title": "freeCodeCamp JavaScript", "type": "course", "url": "https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures-v8/", "estimated_hours": 10},
-    ],
-    "React": [
-        {"title": "React Official Learn Guide", "type": "article", "url": "https://react.dev/learn", "estimated_hours": 8},
-        {"title": "React Tic-Tac-Toe Tutorial", "type": "practice", "url": "https://react.dev/learn/tutorial-tic-tac-toe", "estimated_hours": 4},
-        {"title": "freeCodeCamp Front End Libraries", "type": "course", "url": "https://www.freecodecamp.org/learn/front-end-development-libraries/", "estimated_hours": 10},
-    ],
-    "Node.js": [
-        {"title": "Node.js Learn Guide", "type": "article", "url": "https://nodejs.org/en/learn/getting-started/introduction-to-nodejs", "estimated_hours": 6},
-        {"title": "Node.js Best Practices", "type": "article", "url": "https://github.com/goldbergyoni/nodebestpractices", "estimated_hours": 6},
-        {"title": "freeCodeCamp Back End APIs", "type": "course", "url": "https://www.freecodecamp.org/learn/back-end-development-and-apis/", "estimated_hours": 10},
-    ],
-    "TypeScript": [
-        {"title": "TypeScript Handbook", "type": "article", "url": "https://www.typescriptlang.org/docs/handbook/intro.html", "estimated_hours": 8},
-        {"title": "TypeScript Deep Dive", "type": "article", "url": "https://github.com/basarat/typescript-book", "estimated_hours": 6},
-        {"title": "TypeScript Exercises", "type": "practice", "url": "https://typescript-exercises.github.io/", "estimated_hours": 4},
-    ],
-    "HTML": [
-        {"title": "MDN HTML Guide", "type": "article", "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content", "estimated_hours": 6},
-        {"title": "MDN HTML Elements", "type": "article", "url": "https://developer.mozilla.org/en-US/docs/Web/HTML", "estimated_hours": 4},
-    ],
-    "CSS": [
-        {"title": "MDN CSS Guide", "type": "article", "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Styling_basics", "estimated_hours": 6},
-        {"title": "freeCodeCamp Responsive Web Design", "type": "course", "url": "https://www.freecodecamp.org/learn/2022/responsive-web-design/", "estimated_hours": 8},
-        {"title": "CSS-Tricks Guides", "type": "article", "url": "https://css-tricks.com/guides/", "estimated_hours": 4},
-    ],
-    "SQL": [
-        {"title": "SQLBolt Interactive Tutorial", "type": "practice", "url": "https://sqlbolt.com/", "estimated_hours": 5},
-        {"title": "LeetCode Database Practice", "type": "practice", "url": "https://leetcode.com/problemset/database/", "estimated_hours": 6},
-        {"title": "W3Schools SQL Tutorial", "type": "article", "url": "https://www.w3schools.com/sql/", "estimated_hours": 5},
-    ],
-    "Database": [
-        {"title": "PostgreSQL Official Tutorial", "type": "article", "url": "https://www.postgresql.org/docs/current/tutorial.html", "estimated_hours": 6},
-        {"title": "PostgreSQL Tutorial", "type": "article", "url": "https://www.postgresqltutorial.com/", "estimated_hours": 6},
-        {"title": "SQLBolt Interactive Tutorial", "type": "practice", "url": "https://sqlbolt.com/", "estimated_hours": 4},
-    ],
-    "Git": [
-        {"title": "Pro Git Book", "type": "article", "url": "https://git-scm.com/book/en/v2", "estimated_hours": 8},
-        {"title": "Git Official Documentation", "type": "article", "url": "https://git-scm.com/doc", "estimated_hours": 4},
-        {"title": "Atlassian Git Tutorials", "type": "article", "url": "https://www.atlassian.com/git/tutorials", "estimated_hours": 4},
-    ],
-    "Algorithms": [
-        {"title": "Khan Academy Algorithms", "type": "course", "url": "https://www.khanacademy.org/computing/computer-science/algorithms", "estimated_hours": 8},
-        {"title": "VisuAlgo Visualizations", "type": "practice", "url": "https://visualgo.net/en", "estimated_hours": 4},
-        {"title": "LeetCode Problem Set", "type": "practice", "url": "https://leetcode.com/problemset/", "estimated_hours": 8},
-    ],
-    "System Design": [
-        {"title": "System Design Primer", "type": "article", "url": "https://github.com/donnemartin/system-design-primer", "estimated_hours": 10},
-        {"title": "AWS Architecture Center", "type": "article", "url": "https://aws.amazon.com/architecture/", "estimated_hours": 6},
-    ],
-    "API Design": [
-        {"title": "FastAPI Documentation", "type": "article", "url": "https://fastapi.tiangolo.com/tutorial/", "estimated_hours": 8},
-        {"title": "REST API Tutorial", "type": "article", "url": "https://restfulapi.net/", "estimated_hours": 5},
-        {"title": "Microsoft REST API Guidelines", "type": "article", "url": "https://github.com/microsoft/api-guidelines", "estimated_hours": 4},
-    ],
-    "DevOps": [
-        {"title": "Docker Get Started", "type": "article", "url": "https://docs.docker.com/get-started/", "estimated_hours": 6},
-        {"title": "Kubernetes Tutorials", "type": "article", "url": "https://kubernetes.io/docs/tutorials/", "estimated_hours": 8},
-        {"title": "GitHub Actions Docs", "type": "article", "url": "https://docs.github.com/en/actions", "estimated_hours": 4},
-    ],
-    "Testing": [
-        {"title": "Jest Getting Started", "type": "article", "url": "https://jestjs.io/docs/getting-started", "estimated_hours": 4},
-        {"title": "React Testing Library", "type": "article", "url": "https://testing-library.com/docs/react-testing-library/intro/", "estimated_hours": 4},
-    ],
-    "Machine Learning": [
-        {"title": "Google ML Crash Course", "type": "course", "url": "https://developers.google.com/machine-learning/crash-course", "estimated_hours": 10},
-        {"title": "Kaggle Intro to Machine Learning", "type": "course", "url": "https://www.kaggle.com/learn/intro-to-machine-learning", "estimated_hours": 6},
-        {"title": "scikit-learn User Guide", "type": "article", "url": "https://scikit-learn.org/stable/user_guide.html", "estimated_hours": 8},
-    ],
-    "Deep Learning": [
-        {"title": "fast.ai Practical Deep Learning", "type": "course", "url": "https://course.fast.ai/", "estimated_hours": 12},
-        {"title": "PyTorch Tutorials", "type": "article", "url": "https://pytorch.org/tutorials/", "estimated_hours": 8},
-        {"title": "TensorFlow Tutorials", "type": "article", "url": "https://www.tensorflow.org/tutorials", "estimated_hours": 8},
-    ],
-    "Statistics": [
-        {"title": "Khan Academy Statistics", "type": "course", "url": "https://www.khanacademy.org/math/statistics-probability", "estimated_hours": 8},
-        {"title": "Kaggle Intro to Statistics", "type": "course", "url": "https://www.kaggle.com/learn/intro-to-statistics", "estimated_hours": 5},
-    ],
-    "Pandas": [
-        {"title": "10 Minutes to pandas", "type": "article", "url": "https://pandas.pydata.org/docs/user_guide/10min.html", "estimated_hours": 2},
-        {"title": "pandas User Guide", "type": "article", "url": "https://pandas.pydata.org/docs/user_guide/index.html", "estimated_hours": 8},
-    ],
-    "NumPy": [
-        {"title": "NumPy Absolute Beginners", "type": "article", "url": "https://numpy.org/doc/stable/user/absolute_beginners.html", "estimated_hours": 4},
-        {"title": "NumPy User Guide", "type": "article", "url": "https://numpy.org/doc/stable/user/index.html", "estimated_hours": 6},
-    ],
-    "State Management": [
-        {"title": "React Context Guide", "type": "article", "url": "https://react.dev/learn/passing-data-deeply-with-context", "estimated_hours": 3},
-        {"title": "Redux Getting Started", "type": "article", "url": "https://redux.js.org/introduction/getting-started", "estimated_hours": 5},
-    ],
-    "UI/UX": [
-        {"title": "Material Design 3", "type": "article", "url": "https://m3.material.io/", "estimated_hours": 4},
-        {"title": "MDN Accessibility", "type": "article", "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Accessibility", "estimated_hours": 4},
-    ],
-    "Security": [
-        {"title": "OWASP Top 10", "type": "article", "url": "https://owasp.org/www-project-top-ten/", "estimated_hours": 4},
-        {"title": "MDN Web Security", "type": "article", "url": "https://developer.mozilla.org/en-US/docs/Web/Security", "estimated_hours": 5},
-    ],
-    "Caching": [
-        {"title": "Redis Getting Started", "type": "article", "url": "https://redis.io/docs/latest/get-started/", "estimated_hours": 4},
-        {"title": "MDN HTTP Caching", "type": "article", "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching", "estimated_hours": 3},
-    ],
-    "Data Visualization": [
-        {"title": "Matplotlib Tutorials", "type": "article", "url": "https://matplotlib.org/stable/tutorials/index.html", "estimated_hours": 5},
-        {"title": "Plotly Python", "type": "article", "url": "https://plotly.com/python/", "estimated_hours": 4},
-    ],
-}
-
-# Backward-compatible alias used by older imports
-DEFAULT_RESOURCES = {
-    skill: items[0]["url"] for skill, items in LEARNING_RESOURCES.items()
-}
+_url_client = httpx.Client(timeout=httpx.Timeout(4.0, connect=2.0), follow_redirects=True)
+_url_ok_cache: dict[str, bool] = {}
 
 _TRUSTED_HOST_PARTS = (
     "python.org",
@@ -178,6 +60,35 @@ _TRUSTED_HOST_PARTS = (
     "matplotlib.org",
     "plotly.com",
     "css-tricks.com",
+    "youtube.com",
+    "youtu.be",
+    "edx.org",
+    "codecademy.com",
+    "udemy.com",
+    "huggingface.co",
+    "vuejs.org",
+    "angular.dev",
+    "nextjs.org",
+    "expressjs.com",
+    "djangoproject.com",
+    "flask.palletsprojects.com",
+    "learn.microsoft.com",
+    "developer.android.com",
+    "go.dev",
+    "rust-lang.org",
+    "roadmap.sh",
+    "theodinproject.com",
+    "wikipedia.org",
+    "duckduckgo.com",
+)
+
+_ALLOWED_HOSTS_HINT = (
+    "python.org, docs.python.org, react.dev, developer.mozilla.org, javascript.info, "
+    "nodejs.org, typescriptlang.org, freecodecamp.org, realpython.com, git-scm.com, "
+    "fastapi.tiangolo.com, postgresql.org, docker.com, kubernetes.io, pytorch.org, "
+    "tensorflow.org, scikit-learn.org, kaggle.com, coursera.org, khanacademy.org, "
+    "github.com, leetcode.com, sqlbolt.com, owasp.org, redis.io, pandas.pydata.org, "
+    "numpy.org, youtube.com"
 )
 
 
@@ -207,65 +118,105 @@ class LearningPathResult(BaseModel):
     weekly_paths: List[WeekItem] = Field(default_factory=list)
 
 
-def _catalog_key(skill_name: str) -> Optional[str]:
-    name = (skill_name or "").strip()
-    if not name:
-        return None
-    if name in LEARNING_RESOURCES:
-        return name
-    lower = name.lower()
-    for key in LEARNING_RESOURCES:
-        if key.lower() in lower or lower in key.lower():
-            return key
-    return None
+def search_resources_for_skill(skill_name: str, limit: int = 2) -> List[dict]:
+    """Last-resort links: search pages, not a curated catalog."""
+    skill = (skill_name or "programming").strip() or "programming"
+    query = quote_plus(f"{skill} official tutorial documentation")
+    items = [
+        {
+            "title": f"Search MDN for {skill}",
+            "type": "article",
+            "url": f"https://developer.mozilla.org/en-US/search?q={quote_plus(skill)}",
+            "estimated_hours": 4.0,
+        },
+        {
+            "title": f"Find {skill} docs",
+            "type": "article",
+            "url": f"https://duckduckgo.com/?q={query}",
+            "estimated_hours": 3.0,
+        },
+    ]
+    return items[:limit]
 
 
 def resources_for_skill(skill_name: str, limit: int = 2) -> List[dict]:
-    key = _catalog_key(skill_name)
-    if not key:
-        query = (skill_name or "programming").replace(" ", "+")
-        return [{
-            "title": f"{skill_name} on MDN / docs search",
-            "type": "article",
-            "url": f"https://developer.mozilla.org/en-US/search?q={query}",
-            "estimated_hours": 4.0,
-        }]
-    return [dict(item) for item in LEARNING_RESOURCES[key][:limit]]
-
-
-def _default_resource(skill_name: str) -> dict:
-    return resources_for_skill(skill_name, limit=1)[0]
+    """Alias used by coach/recommender fallbacks."""
+    return search_resources_for_skill(skill_name, limit=limit)
 
 
 def _is_trusted_url(url: Optional[str]) -> bool:
-    if not url or not url.startswith("https://"):
+    if not url or not str(url).startswith("https://"):
         return False
-    host = (urlparse(url).hostname or "").lower()
+    host = (urlparse(str(url)).hostname or "").lower()
     if not host:
         return False
     return any(host == part or host.endswith("." + part) for part in _TRUSTED_HOST_PARTS)
 
 
+def _url_is_usable(url: Optional[str]) -> bool:
+    """Trusted host plus a cheap existence check. 404s are dropped; timeouts keep the link."""
+    if not _is_trusted_url(url):
+        return False
+    if url in _url_ok_cache:
+        return _url_ok_cache[url]
+    ok = True
+    try:
+        response = _url_client.head(url)
+        if response.status_code in (404, 410):
+            ok = False
+        elif response.status_code == 405:
+            response = _url_client.get(url, headers={"Range": "bytes=0-0"})
+            ok = response.status_code not in (404, 410)
+    except Exception:
+        ok = True
+    _url_ok_cache[url] = ok
+    return ok
+
+
+def _normalize_resource(resource: dict) -> dict:
+    hours = resource.get("estimated_hours") or 4.0
+    return {
+        "title": str(resource.get("title") or "Learning resource").strip()[:160],
+        "type": resource.get("type") if resource.get("type") in ("article", "course", "practice", "video") else "article",
+        "url": resource.get("url"),
+        "estimated_hours": float(hours),
+    }
+
+
 def sanitize_week_resources(skill_name: str, resources: Optional[list], limit: int = 2) -> List[dict]:
-    """Keep only real https links; otherwise swap in catalog resources."""
-    catalog = resources_for_skill(skill_name, limit=max(limit, 2))
+    """Keep AI-chosen https links on known hosts. Fill gaps with search URLs only."""
     kept: List[dict] = []
+    seen: set[str] = set()
+
     for resource in resources or []:
         if not isinstance(resource, dict):
             continue
         url = resource.get("url")
-        if _is_trusted_url(url):
-            kept.append({
-                "title": resource.get("title") or catalog[0]["title"],
-                "type": resource.get("type") if resource.get("type") in ("article", "course", "practice", "video") else "article",
-                "url": url,
-                "estimated_hours": float(resource.get("estimated_hours") or catalog[0]["estimated_hours"]),
-            })
+        if not url or not _url_is_usable(url) or url in seen:
+            continue
+        kept.append(_normalize_resource(resource))
+        seen.add(url)
+        if len(kept) >= limit:
+            return kept
+
+    for item in search_resources_for_skill(skill_name, limit=limit):
         if len(kept) >= limit:
             break
-    if kept:
-        return kept[:limit]
-    return catalog[:limit]
+        if item["url"] in seen:
+            continue
+        kept.append(dict(item))
+        seen.add(item["url"])
+    return kept[:limit]
+
+
+def resources_from_model(skill_name: str, resources: Optional[list], limit: int = 2) -> List[dict]:
+    raw = []
+    for resource in resources or []:
+        if hasattr(resource, "model_dump"):
+            raw.append(resource.model_dump())
+        elif isinstance(resource, dict):
+            raw.append(resource)
+    return sanitize_week_resources(skill_name, raw, limit=limit)
 
 
 def _fallback_path(skill_gaps: List[dict], hours_per_week: int) -> List[dict]:
@@ -276,7 +227,7 @@ def _fallback_path(skill_gaps: List[dict], hours_per_week: int) -> List[dict]:
             "week_number": index,
             "skill_name": skill_name,
             "skills": [skill_name],
-            "resources": resources_for_skill(skill_name, limit=2),
+            "resources": search_resources_for_skill(skill_name, limit=2),
             "estimated_hours": float(hours_per_week),
             "explanation": [
                 f"Priority: {gap.get('priority', 'Medium')}",
@@ -287,7 +238,7 @@ def _fallback_path(skill_gaps: List[dict], hours_per_week: int) -> List[dict]:
 
 
 def generate_learning_path(skill_gaps: List[dict], hours_per_week: int) -> List[dict]:
-    """Generate a weekly path. Skills may come from the LLM; links come from the catalog."""
+    """Generate a weekly path. The LLM picks skills and resources; URLs are verified."""
     if not skill_gaps or hours_per_week <= 0:
         return []
 
@@ -312,16 +263,21 @@ def generate_learning_path(skill_gaps: List[dict], hours_per_week: int) -> List[
     try:
         result = chat_json(
             system=(
-                "Return ONLY a complete JSON object with this shape: "
+                "Return ONLY a complete JSON object: "
                 "{\"weekly_paths\":[{\"week_number\":1,\"skill_name\":\"Python\","
                 "\"skills\":[\"Python\"],\"estimated_hours\":8,"
-                "\"explanation\":[\"Foundation skill\"]}]}. "
-                "Exactly 4 week objects. One skill per week. Do not include resource URLs."
+                "\"explanation\":[\"Foundation skill\"],"
+                "\"resources\":[{\"title\":\"Python Official Tutorial\",\"type\":\"article\","
+                "\"url\":\"https://docs.python.org/3/tutorial/\",\"estimated_hours\":6}]}]}. "
+                "Exactly 4 weeks, one skill per week. Each week MUST include 2 resources. "
+                "Choose real public https URLs on official docs or well-known education sites "
+                f"({_ALLOWED_HOSTS_HINT}). Never invent paths. "
+                "Prefer canonical tutorial/docs homepages you are sure exist."
             ),
             user=f"Hours/week: {hours_per_week}. Gaps: {compact_gaps}",
             schema=LearningPathResult,
-            timeout=60.0,
-            num_predict=700,
+            timeout=75.0,
+            num_predict=1600,
             retries=1,
         )
     except HTTPException:
@@ -335,7 +291,7 @@ def generate_learning_path(skill_gaps: List[dict], hours_per_week: int) -> List[
             "week_number": week.week_number or index,
             "skill_name": skill_name,
             "skills": skills,
-            "resources": resources_for_skill(skill_name, limit=2),
+            "resources": resources_from_model(skill_name, week.resources, limit=2),
             "estimated_hours": float(week.estimated_hours or hours_per_week),
             "explanation": (week.explanation or [])[:2],
         })

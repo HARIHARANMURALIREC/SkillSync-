@@ -1,5 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+  Pressable,
+} from 'react-native';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -17,6 +26,14 @@ const CAREER_GOALS = [
 
 interface ProfileScreenProps {
   navigation: any;
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    rows.push(items.slice(i, i + size));
+  }
+  return rows;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
@@ -63,7 +80,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.contentContainer}>
+      <ScrollView
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         <Card>
           <Text style={styles.cardTitle}>Profile Information</Text>
           <Input
@@ -84,20 +104,29 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <Card>
           <Text style={styles.cardTitle}>Learning Preferences</Text>
           
-          <View style={styles.selectContainer}>
-            <Text style={styles.selectLabel}>Career Goal</Text>
-            <View style={styles.optionsContainer}>
-              {CAREER_GOALS.map((goal) => (
-                <Button
-                  key={goal}
-                  title={goal}
-                  onPress={() => setCareerGoal(goal)}
-                  variant={careerGoal === goal ? 'primary' : 'secondary'}
-                  style={styles.optionButton}
-                />
-              ))}
+          <Text style={styles.selectLabel}>Career Goal</Text>
+          {chunk(CAREER_GOALS, 2).map((row) => (
+            <View key={row.join('-')} style={styles.goalRow}>
+              {row.map((goal) => {
+                const selected = careerGoal === goal;
+                return (
+                  <Pressable
+                    key={goal}
+                    onPress={() => setCareerGoal(goal)}
+                    style={[styles.goalChip, selected && styles.goalChipActive]}
+                  >
+                    <Text
+                      style={[styles.goalChipText, selected && styles.goalChipTextActive]}
+                      numberOfLines={2}
+                    >
+                      {goal}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              {row.length === 1 ? <View style={styles.goalChipSpacer} /> : null}
             </View>
-          </View>
+          ))}
 
           <Input
             label="Hours per Week"
@@ -105,7 +134,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             value={hoursPerWeek}
             onChangeText={setHoursPerWeek}
             keyboardType="numeric"
-            style={styles.input}
+            style={styles.hoursInput}
           />
         </Card>
 
@@ -134,6 +163,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: theme.spacing.lg,
+    paddingBottom: theme.spacing['3xl'],
   },
   cardTitle: {
     ...theme.typography.h4,
@@ -143,8 +173,9 @@ const styles = StyleSheet.create({
   input: {
     marginBottom: theme.spacing.md,
   },
-  selectContainer: {
-    marginBottom: theme.spacing.lg,
+  hoursInput: {
+    marginTop: theme.spacing.md,
+    marginBottom: 0,
   },
   selectLabel: {
     ...theme.typography.bodySmall,
@@ -152,14 +183,40 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     fontWeight: '500',
   },
-  optionsContainer: {
+  goalRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
+    alignItems: 'stretch',
+    marginBottom: theme.spacing.sm,
   },
-  optionButton: {
+  goalChip: {
     flex: 1,
-    minWidth: '45%',
+    minHeight: 52,
+    marginHorizontal: theme.spacing.xs,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.ink,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goalChipActive: {
+    borderColor: theme.colors.gold.DEFAULT,
+    backgroundColor: theme.colors.gold.faint,
+  },
+  goalChipSpacer: {
+    flex: 1,
+    marginHorizontal: theme.spacing.xs,
+  },
+  goalChipText: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.cream,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  goalChipTextActive: {
+    color: theme.colors.gold.DEFAULT,
   },
   updateButton: {
     marginTop: theme.spacing.md,
@@ -167,6 +224,7 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
   },
 });
 

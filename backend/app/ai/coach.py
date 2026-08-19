@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 
 from app.models import User
 from app.ai.ollama_client import chat_text
-from app.ai.learning_path_engine import resources_for_skill
+from app.ai.learning_path_engine import search_resources_for_skill
 
 
 def build_coach_context(
@@ -34,8 +34,8 @@ def build_coach_context(
                 f"  - {gap['skill_name']}: current {gap['current_level']:.1f}, "
                 f"target {gap['target_level']:.1f}, gap {gap['gap']:.1f} ({gap['priority']})"
             )
-            resource = resources_for_skill(gap["skill_name"], limit=1)[0]
-            lines.append(f"    resource: {resource['title']} {resource['url']}")
+            resource = search_resources_for_skill(gap["skill_name"], limit=1)[0]
+            lines.append(f"    search: {resource['title']} {resource['url']}")
 
     if path_summary:
         lines.append(

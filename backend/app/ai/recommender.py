@@ -10,7 +10,7 @@ from typing import Any, Dict, List
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.ai.gap_analyzer import get_cached_readiness
-from app.ai.learning_path_engine import ResourceItem, resources_for_skill, sanitize_week_resources
+from app.ai.learning_path_engine import ResourceItem, resources_from_model, search_resources_for_skill
 from app.ai.ollama_client import chat_json
 
 
@@ -99,34 +99,28 @@ def adapt_learning_path(
             "\"estimated_hours\":6}],\"estimated_hours\":8,"
             "\"status\":\"pending\",\"is_revision\":false,\"explanation\":[\"...\"]}],"
             "\"changes\":[\"Added revision week for Python\"]}. "
-            "Include at least one resource per week with title, type, url, estimated_hours. "
-            "If progress < 40 insert a revision week. If progress > 80 shorten hours. "
-            "Keep at most 5 weeks."
+            "Each week MUST include 2 resources with real https URLs on official docs "
+            "(python.org, react.dev, MDN, freecodecamp.org, github.com, kaggle.com). "
+            "Never invent URLs. If progress < 40 insert a revision week. "
+            "If progress > 80 shorten hours. Keep at most 5 weeks."
         ),
         user=f"Hours/week: {hours_per_week}. Progress: {progress_data}. Path: {compact_path}",
         schema=AdaptationResult,
         timeout=50.0,
-        num_predict=800,
+        num_predict=1200,
         retries=1,
     )
 
     adapted_path = []
     for index, week in enumerate(result.adapted_path[:6], start=1):
         skills = week.skills or [week.skill_name]
-        resources = []
-        for resource in week.resources[:2]:
-            resources.append({
-                "title": resource.title or "Untitled Resource",
-                "type": resource.type if resource.type in ("article", "course", "practice", "video") else "article",
-                "url": resource.url,
-                "estimated_hours": float(resource.estimated_hours or 1.0),
-            })
+        resources = resources_from_model(week.skill_name or skills[0], week.resources, limit=2)
         if not resources:
             week_num = week.week_number or index
             resources = list(original_by_week.get(week_num) or original_by_skill.get(week.skill_name) or [])
-        resources = sanitize_week_resources(week.skill_name or skills[0], resources, limit=2)
+            resources = resources_from_model(week.skill_name or skills[0], resources, limit=2)
         if not resources:
-            resources = resources_for_skill(week.skill_name or skills[0], limit=2)
+            resources = search_resources_for_skill(week.skill_name or skills[0], limit=2)
         adapted_path.append({
             "week_number": week.week_number or index,
             "skill_name": week.skill_name or skills[0],
