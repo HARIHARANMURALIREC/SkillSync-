@@ -10,7 +10,7 @@ from typing import Any, Dict, List
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.ai.gap_analyzer import get_cached_readiness
-from app.ai.learning_path_engine import ResourceItem, _default_resource
+from app.ai.learning_path_engine import ResourceItem, resources_for_skill, sanitize_week_resources
 from app.ai.ollama_client import chat_json
 
 
@@ -124,8 +124,9 @@ def adapt_learning_path(
         if not resources:
             week_num = week.week_number or index
             resources = list(original_by_week.get(week_num) or original_by_skill.get(week.skill_name) or [])
+        resources = sanitize_week_resources(week.skill_name or skills[0], resources, limit=2)
         if not resources:
-            resources = [_default_resource(week.skill_name or skills[0])]
+            resources = resources_for_skill(week.skill_name or skills[0], limit=2)
         adapted_path.append({
             "week_number": week.week_number or index,
             "skill_name": week.skill_name or skills[0],

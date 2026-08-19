@@ -291,7 +291,9 @@ export const LearningPathScreen: React.FC<LearningPathScreenProps> = () => {
                         onPress={() => Linking.openURL(resource.url!)}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <Text style={styles.resourceLink}>Open resource</Text>
+                        <Text style={styles.resourceLink}>
+                          {resource.url.replace(/^https?:\/\//, '')}
+                        </Text>
                       </TouchableOpacity>
                     )}
                   </View>

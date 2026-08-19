@@ -50,10 +50,10 @@ const ResourceChecklist = ({
                   href={resource.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gold hover:text-gold-hover mt-2 inline-block"
+                  className="text-sm text-gold hover:text-gold-hover mt-2 inline-block break-all"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Open resource
+                  {resource.url.replace(/^https?:\/\//, '')}
                 </a>
               )}
             </div>

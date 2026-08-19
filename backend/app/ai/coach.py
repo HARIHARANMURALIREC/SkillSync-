@@ -2,6 +2,7 @@ from typing import Dict, List, Optional
 
 from app.models import User
 from app.ai.ollama_client import chat_text
+from app.ai.learning_path_engine import resources_for_skill
 
 
 def build_coach_context(
@@ -33,6 +34,8 @@ def build_coach_context(
                 f"  - {gap['skill_name']}: current {gap['current_level']:.1f}, "
                 f"target {gap['target_level']:.1f}, gap {gap['gap']:.1f} ({gap['priority']})"
             )
+            resource = resources_for_skill(gap["skill_name"], limit=1)[0]
+            lines.append(f"    resource: {resource['title']} {resource['url']}")
 
     if path_summary:
         lines.append(
@@ -49,7 +52,7 @@ def coach_system_prompt(context: str) -> str:
         "You are SkillSync's AI career coach.\n"
         "Write a short, scannable reply. Never use markdown tables, pipes (|), or HTML.\n"
         "Do not invent scores, hours, or gaps that are not in USER CONTEXT.\n"
-        "Respect hours per week. Suggest at most 3 actions.\n"
+        "When you name a resource, copy the exact URL from USER CONTEXT. Never invent links.\n"
         "Use this exact layout with blank lines between sections:\n\n"
         "Focus\n"
         "One sentence on the week's priority.\n\n"

@@ -15,7 +15,7 @@ from app.schemas import (
 )
 from app.auth import get_current_user
 from app.ai.gap_analyzer import calculate_skill_gaps, get_career_requirements
-from app.ai.learning_path_engine import generate_learning_path, _default_resource
+from app.ai.learning_path_engine import generate_learning_path, sanitize_week_resources
 from app.ai.recommender import adapt_learning_path
 
 router = APIRouter(prefix="/api/learning-path", tags=["learning-path"])
@@ -38,10 +38,7 @@ def _dedupe_resources(resources: list) -> list:
 
 
 def _ensure_week_resources(resources: list, skill_name: str) -> list:
-    cleaned = _dedupe_resources(resources)
-    if cleaned:
-        return cleaned[:RESOURCE_LIMIT]
-    return [_default_resource(skill_name)]
+    return sanitize_week_resources(skill_name, resources, limit=min(RESOURCE_LIMIT, 3))
 
 
 def _group_paths_by_week(learning_paths: list) -> Dict[int, dict]:
