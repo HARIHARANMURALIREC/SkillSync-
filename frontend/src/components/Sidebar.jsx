@@ -7,7 +7,7 @@ import {
   MessageCircle,
   UserRound,
   LogOut,
-  Sparkles,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProgress } from '../context/ProgressContext';
@@ -30,21 +30,21 @@ export default function Sidebar({ isOpen, onClose }) {
       {isOpen && (
         <button
           type="button"
-          className="fixed inset-0 z-30 bg-bg/60 lg:hidden"
+          className="fixed inset-0 z-30 bg-bg/70 backdrop-blur-sm lg:hidden"
           onClick={onClose}
           aria-label="Close navigation"
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-line bg-elev lg:w-64 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-line bg-elev/95 backdrop-blur-xl lg:w-64 ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        } transition-transform duration-300`}
+        } transition-transform duration-300 ease-out-expo`}
       >
         <div className="flex items-center gap-3 px-5 py-6">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold to-violet text-bg">
-            <Sparkles size={16} />
+          <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-accent to-violet text-bg shadow-neon-sm">
+            <Zap size={16} />
           </div>
-          <span className="font-serif text-xl">SkillSync</span>
+          <span className="font-display text-xl font-bold tracking-tight">SkillSync</span>
         </div>
 
         <nav className="flex-1 space-y-1 px-3">
@@ -55,19 +55,19 @@ export default function Sidebar({ isOpen, onClose }) {
                 key={link.to}
                 to={link.to}
                 onClick={onClose}
-                className="relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-muted"
+                className="relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors"
               >
                 {({ isActive }) => (
                   <>
                     {isActive && (
                       <motion.span
                         layoutId="nav-active"
-                        className="absolute inset-0 rounded-2xl border border-gold/30 bg-gold/10"
-                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                        className="absolute inset-0 rounded-lg nav-link-active shadow-neon-sm"
+                        transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                       />
                     )}
-                    <Icon size={16} className={`relative z-10 ${isActive ? 'text-gold' : ''}`} />
-                    <span className={`relative z-10 ${isActive ? 'text-gold' : ''}`}>{link.label}</span>
+                    <Icon size={16} className={`relative z-10 ${isActive ? 'text-accent' : ''}`} />
+                    <span className={`relative z-10 ${isActive ? 'text-fg' : ''}`}>{link.label}</span>
                   </>
                 )}
               </NavLink>
@@ -75,7 +75,7 @@ export default function Sidebar({ isOpen, onClose }) {
           })}
         </nav>
 
-        <div className="space-y-3 px-4 py-5">
+        <div className="space-y-3 border-t border-line px-4 py-5">
           <LevelChip level={level.level} title={level.title} />
           <button
             type="button"

@@ -46,7 +46,43 @@ export function getApiErrorMessage(error, fallback = 'Something went wrong. Plea
     );
   }
   if (typeof detail === 'string' && detail) return detail;
+  if (detail && typeof detail === 'object' && typeof detail.message === 'string') return detail.message;
   return fallback;
+}
+
+export async function createReadinessReport() {
+  const res = await api.post('/api/readiness-report');
+  return res.data;
+}
+
+export async function getLatestReadinessReport() {
+  const res = await api.get('/api/readiness-report/latest');
+  return res.data;
+}
+
+export async function getPublicReadinessReport(token) {
+  const res = await api.get(`/api/readiness-report/public/${token}`);
+  return res.data;
+}
+
+export async function getCoachHistory() {
+  const res = await api.get('/api/coach/history');
+  return res.data;
+}
+
+export async function clearCoachHistory() {
+  const res = await api.delete('/api/coach/history');
+  return res.data;
+}
+
+export async function getWeeklyPlan() {
+  const res = await api.get('/api/coach/weekly-plan');
+  return res.data;
+}
+
+export function publicReportUrl(sharePath) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${origin}${sharePath}`;
 }
 
 export default api;

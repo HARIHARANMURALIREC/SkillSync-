@@ -2,19 +2,21 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
   Pressable,
+  Switch,
 } from 'react-native';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { AppTheme } from '../theme';
+import { useStyles } from '../theme/useStyles';
 import api from '../services/api';
-import { theme } from '../theme';
 
 const CAREER_GOALS = [
   'Software Engineer',
@@ -36,8 +38,60 @@ function chunk<T>(items: T[], size: number): T[][] {
   return rows;
 }
 
+const createStyles = (theme: AppTheme) => ({
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  contentContainer: { padding: theme.spacing.lg, paddingBottom: theme.spacing['3xl'] },
+  cardTitle: { ...theme.typography.h4, color: theme.colors.cream, marginBottom: theme.spacing.lg },
+  input: { marginBottom: theme.spacing.md },
+  hoursInput: { marginTop: theme.spacing.md, marginBottom: 0 },
+  selectLabel: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.muted,
+    marginBottom: theme.spacing.sm,
+    fontWeight: '600' as const,
+  },
+  goalRow: { flexDirection: 'row' as const, alignItems: 'stretch' as const, marginBottom: theme.spacing.sm },
+  goalChip: {
+    flex: 1,
+    minHeight: 52,
+    marginHorizontal: theme.spacing.xs,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.elev,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  goalChipActive: {
+    borderColor: `${theme.colors.accent}99`,
+    backgroundColor: `${theme.colors.accent}18`,
+  },
+  goalChipSpacer: { flex: 1, marginHorizontal: theme.spacing.xs },
+  goalChipText: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.cream,
+    textAlign: 'center' as const,
+    fontWeight: '500' as const,
+  },
+  goalChipTextActive: { color: theme.colors.accent, fontWeight: '600' as const },
+  themeRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    marginBottom: theme.spacing.md,
+  },
+  themeLabel: { ...theme.typography.body, color: theme.colors.cream, fontWeight: '600' as const },
+  themeHint: { ...theme.typography.caption, color: theme.colors.muted, marginTop: 4 },
+  updateButton: { marginTop: theme.spacing.md, marginBottom: theme.spacing.sm },
+  logoutButton: { marginTop: theme.spacing.sm, marginBottom: theme.spacing.lg },
+});
+
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+  const styles = useStyles(createStyles);
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [careerGoal, setCareerGoal] = useState(user?.career_goal || '');
   const [hoursPerWeek, setHoursPerWeek] = useState(String(user?.hours_per_week || 10));
@@ -52,9 +106,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         hours_per_week: parseInt(hoursPerWeek) || 10,
       });
       Alert.alert('Success', 'Profile updated successfully');
-      // Refresh user data - would need to update AuthContext
     } catch (error: any) {
-      console.error('Failed to update profile:', error);
       Alert.alert('Error', error.response?.data?.detail || 'Failed to update profile');
     } finally {
       setLoading(false);
@@ -76,34 +128,31 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.contentContainer}
-        keyboardShouldPersistTaps="handled"
-      >
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={styles.contentContainer} keyboardShouldPersistTaps="handled">
+        <Card glow>
+          <View style={styles.themeRow}>
+            <View>
+              <Text style={styles.themeLabel}>Appearance</Text>
+              <Text style={styles.themeHint}>{isDark ? 'Dark mode' : 'Light mode'}</Text>
+            </View>
+            <Switch
+              value={!isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: '#334155', true: '#22D3EE' }}
+              thumbColor="#F8FAFC"
+            />
+          </View>
+        </Card>
+
         <Card>
           <Text style={styles.cardTitle}>Profile Information</Text>
-          <Input
-            label="Email"
-            value={user?.email || ''}
-            editable={false}
-            style={styles.input}
-          />
-          <Input
-            label="Full Name"
-            placeholder="Enter your full name"
-            value={fullName}
-            onChangeText={setFullName}
-            style={styles.input}
-          />
+          <Input label="Email" value={user?.email || ''} editable={false} style={styles.input} onChangeText={() => {}} />
+          <Input label="Full Name" placeholder="Enter your full name" value={fullName} onChangeText={setFullName} style={styles.input} />
         </Card>
 
         <Card>
           <Text style={styles.cardTitle}>Learning Preferences</Text>
-          
           <Text style={styles.selectLabel}>Career Goal</Text>
           {chunk(CAREER_GOALS, 2).map((row) => (
             <View key={row.join('-')} style={styles.goalRow}>
@@ -115,10 +164,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                     onPress={() => setCareerGoal(goal)}
                     style={[styles.goalChip, selected && styles.goalChipActive]}
                   >
-                    <Text
-                      style={[styles.goalChipText, selected && styles.goalChipTextActive]}
-                      numberOfLines={2}
-                    >
+                    <Text style={[styles.goalChipText, selected && styles.goalChipTextActive]} numberOfLines={2}>
                       {goal}
                     </Text>
                   </Pressable>
@@ -127,7 +173,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               {row.length === 1 ? <View style={styles.goalChipSpacer} /> : null}
             </View>
           ))}
-
           <Input
             label="Hours per Week"
             placeholder="Available hours for learning"
@@ -138,93 +183,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           />
         </Card>
 
-        <Button
-          title="Update Profile"
-          onPress={handleUpdate}
-          loading={loading}
-          style={styles.updateButton}
-        />
-
-        <Button
-          title="Logout"
-          onPress={handleLogout}
-          variant="secondary"
-          style={styles.logoutButton}
-        />
+        <Button title="Update Profile" onPress={handleUpdate} loading={loading} style={styles.updateButton} />
+        <Button title="Logout" onPress={handleLogout} variant="secondary" style={styles.logoutButton} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  contentContainer: {
-    padding: theme.spacing.lg,
-    paddingBottom: theme.spacing['3xl'],
-  },
-  cardTitle: {
-    ...theme.typography.h4,
-    color: theme.colors.cream,
-    marginBottom: theme.spacing.lg,
-  },
-  input: {
-    marginBottom: theme.spacing.md,
-  },
-  hoursInput: {
-    marginTop: theme.spacing.md,
-    marginBottom: 0,
-  },
-  selectLabel: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.muted,
-    marginBottom: theme.spacing.sm,
-    fontWeight: '500',
-  },
-  goalRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    marginBottom: theme.spacing.sm,
-  },
-  goalChip: {
-    flex: 1,
-    minHeight: 52,
-    marginHorizontal: theme.spacing.xs,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.ink,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  goalChipActive: {
-    borderColor: theme.colors.gold.DEFAULT,
-    backgroundColor: theme.colors.gold.faint,
-  },
-  goalChipSpacer: {
-    flex: 1,
-    marginHorizontal: theme.spacing.xs,
-  },
-  goalChipText: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.cream,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  goalChipTextActive: {
-    color: theme.colors.gold.DEFAULT,
-  },
-  updateButton: {
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
-  },
-  logoutButton: {
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.lg,
-  },
-});
-

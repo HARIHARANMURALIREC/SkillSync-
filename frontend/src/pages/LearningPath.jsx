@@ -17,6 +17,9 @@ const LearningPath = () => {
   const [adapting, setAdapting] = useState(false);
   const [openWeek, setOpenWeek] = useState(1);
   const [celebrate, setCelebrate] = useState(false);
+  const [teachback, setTeachback] = useState(null);
+  const [teachAnswer, setTeachAnswer] = useState('');
+  const [teachBusy, setTeachBusy] = useState(false);
   const { success, error: toastError } = useToast();
   const completionPct = (() => {
     if (!learningPath?.weekly_paths) return 0;
@@ -73,15 +76,64 @@ const LearningPath = () => {
     }
   };
 
+  const applyProgress = (r) => {
+    setLearningPath((cur) => {
+      const next = {
+        ...cur,
+        weekly_paths: cur.weekly_paths.map((week) => {
+          const weekCompleted = r.data.completed
+            .filter((c) => c.week_number === week.week_number)
+            .map((c) => c.resource_index);
+          const resourceCount = week.resources?.length || 0;
+          let status = 'pending';
+          if (weekCompleted.length && weekCompleted.length < resourceCount) status = 'in_progress';
+          if (resourceCount && weekCompleted.length >= resourceCount) status = 'completed';
+          return {
+            ...week,
+            completed_resources: weekCompleted,
+            status: r.data.week_status[week.week_number] || status,
+          };
+        }),
+      };
+      const done = next.weekly_paths.every(
+        (w) => (w.completed_resources || []).length >= (w.resources?.length || 0) && (w.resources?.length || 0) > 0
+      );
+      if (done) setCelebrate(true);
+      return next;
+    });
+  };
+
   const toggle = async (weekNumber, resourceIndex, completed) => {
+    if (completed) {
+      try {
+        const start = await api.post('/api/teachback/start', {
+          week_number: weekNumber,
+          resource_index: resourceIndex,
+        });
+        if (start.data.passed) {
+          const r = await api.post('/api/learning-path/progress', {
+            week_number: weekNumber,
+            resource_index: resourceIndex,
+            completed: true,
+          });
+          applyProgress(r);
+          return;
+        }
+        setTeachAnswer('');
+        setTeachback(start.data);
+      } catch (e) {
+        toastError(getApiErrorMessage(e, 'Could not start teach-back.'));
+      }
+      return;
+    }
+
     const previous = learningPath;
     setLearningPath((cur) => ({
       ...cur,
       weekly_paths: cur.weekly_paths.map((week) => {
         if (week.week_number !== weekNumber) return week;
         const indices = new Set(week.completed_resources || []);
-        if (completed) indices.add(resourceIndex);
-        else indices.delete(resourceIndex);
+        indices.delete(resourceIndex);
         return { ...week, completed_resources: Array.from(indices).sort((a, b) => a - b) };
       }),
     }));
@@ -89,35 +141,37 @@ const LearningPath = () => {
       const r = await api.post('/api/learning-path/progress', {
         week_number: weekNumber,
         resource_index: resourceIndex,
-        completed,
+        completed: false,
       });
-      setLearningPath((cur) => {
-        const next = {
-          ...cur,
-          weekly_paths: cur.weekly_paths.map((week) => {
-            const weekCompleted = r.data.completed
-              .filter((c) => c.week_number === week.week_number)
-              .map((c) => c.resource_index);
-            const resourceCount = week.resources?.length || 0;
-            let status = 'pending';
-            if (weekCompleted.length && weekCompleted.length < resourceCount) status = 'in_progress';
-            if (resourceCount && weekCompleted.length >= resourceCount) status = 'completed';
-            return {
-              ...week,
-              completed_resources: weekCompleted,
-              status: r.data.week_status[week.week_number] || status,
-            };
-          }),
-        };
-        const done = next.weekly_paths.every(
-          (w) => (w.completed_resources || []).length >= (w.resources?.length || 0) && (w.resources?.length || 0) > 0
-        );
-        if (done) setCelebrate(true);
-        return next;
-      });
+      applyProgress(r);
     } catch (e) {
       setLearningPath(previous);
       toastError(getApiErrorMessage(e, 'Failed to update progress'));
+    }
+  };
+
+  const submitTeachback = async () => {
+    if (!teachback) return;
+    setTeachBusy(true);
+    try {
+      const res = await api.post('/api/teachback/submit', {
+        week_number: teachback.week_number,
+        resource_index: teachback.resource_index,
+        answer: teachAnswer,
+      });
+      if (res.data.passed) {
+        success('Teach-back passed. Resource counted.');
+        setTeachback(null);
+        const path = await api.get('/api/learning-path');
+        setLearningPath(path.data);
+      } else {
+        setTeachback({ ...teachback, ...res.data });
+        toastError(res.data.miss || 'Not quite — try again.');
+      }
+    } catch (e) {
+      toastError(getApiErrorMessage(e, 'Teach-back failed.'));
+    } finally {
+      setTeachBusy(false);
     }
   };
 
@@ -126,7 +180,7 @@ const LearningPath = () => {
     return (
       <EmptyState
         title="No path yet"
-        body="Complete assessments, then generate a weekly plan. Ollama drafts the weeks; links come from a catalog."
+        body="Complete assessments, then generate a weekly plan. Resources are AI-picked; you explain each one before it counts."
         action={
           <button className="btn-primary" onClick={generate} disabled={generating}>
             {generating ? 'Generating…' : 'Generate learning path'}
@@ -154,8 +208,8 @@ const LearningPath = () => {
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
-            <ProgressRing value={pct} />
-            <span className="absolute inset-0 grid place-items-center font-serif tabular">{pctN}%</span>
+            <ProgressRing value={pct} tone="accent" />
+            <span className="absolute inset-0 grid place-items-center font-mono text-sm font-semibold tabular">{pctN}%</span>
           </div>
           <p className="text-sm text-muted tabular">{done} of {total} resources</p>
         </div>
@@ -168,27 +222,59 @@ const LearningPath = () => {
           {generating ? 'Generating…' : 'Regenerate'}
         </button>
       </div>
-      <p className="text-xs text-muted">Generate and adapt use local Ollama (mistral:latest) when the model is running.</p>
+      <p className="text-xs text-muted">Checking a resource opens a teach-back. It only counts after you explain it.</p>
+
+      {teachback && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-bg/85 backdrop-blur-sm p-4">
+          <div className="card-glass max-w-lg w-full panel-glow shadow-neon">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent to-transparent rounded-t-xl" />
+            <p className="section-label text-accent">Teach-back</p>
+            <h3 className="mt-2 text-2xl font-bold">{teachback.resource_title || 'Explain this'}</h3>
+            <p className="mt-3 text-sm text-muted">{teachback.prompt}</p>
+            {teachback.miss && <p className="mt-3 text-sm text-rose">{teachback.miss}</p>}
+            <textarea
+              className="input-field mt-4 min-h-[140px]"
+              value={teachAnswer}
+              onChange={(e) => setTeachAnswer(e.target.value)}
+              placeholder="Four short sentences…"
+            />
+            <div className="mt-4 flex gap-3">
+              <button className="btn-primary" onClick={submitTeachback} disabled={teachBusy}>
+                {teachBusy ? 'Scoring…' : 'Submit explanation'}
+              </button>
+              <button className="btn-secondary" onClick={() => setTeachback(null)} disabled={teachBusy}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {learningPath.weekly_paths.map((week) => {
         const status = week.status || 'pending';
+        const isOpen = openWeek === week.week_number;
         return (
-          <div key={week.week_number} className="card overflow-hidden">
+          <div
+            key={week.week_number}
+            className={`card overflow-hidden transition-all ${isOpen ? 'border-accent/40 shadow-neon-sm' : ''}`}
+          >
             <button
               type="button"
               className="flex w-full items-center justify-between text-left"
-              onClick={() => setOpenWeek(openWeek === week.week_number ? null : week.week_number)}
+              onClick={() => setOpenWeek(isOpen ? null : week.week_number)}
             >
               <div>
-                <p className="font-mono text-gold">Week {week.week_number}</p>
-                <h3 className="font-serif text-2xl">{week.skill_name}</h3>
+                <p className="font-mono text-accent font-semibold">Week {week.week_number}</p>
+                <h3 className="text-2xl font-bold">{week.skill_name}</h3>
               </div>
               <div className="flex items-center gap-3">
-                <span className="chip-muted">{status.replace('_', ' ')}</span>
-                <ChevronDown className={`transition ${openWeek === week.week_number ? 'rotate-180' : ''}`} size={18} />
+                <span className={`chip ${status === 'completed' ? 'chip-teal' : 'chip-muted'}`}>
+                  {status.replace('_', ' ')}
+                </span>
+                <ChevronDown className={`transition text-muted ${isOpen ? 'rotate-180 text-accent' : ''}`} size={18} />
               </div>
             </button>
-            {openWeek === week.week_number && (
+            {isOpen && (
               <div className="mt-6 border-t border-line pt-4">
                 <ResourceChecklist
                   weekNumber={week.week_number}

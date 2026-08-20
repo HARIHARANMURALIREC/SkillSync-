@@ -2,18 +2,22 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   RefreshControl,
   TouchableOpacity,
   Linking,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { PageHeader } from '../components/PageHeader';
 import { LoadingScreen } from '../components/LoadingScreen';
 import api, { getApiErrorMessage } from '../services/api';
-import { theme } from '../theme';
+import { AppTheme } from '../theme';
+import { useStyles } from '../theme/useStyles';
+import { useTheme } from '../context/ThemeContext';
 import { LearningPathData, WeeklyPath } from '../types';
 import { useProgress } from '../context/ProgressContext';
 
@@ -21,14 +25,290 @@ interface LearningPathScreenProps {
   navigation: any;
 }
 
+const createStyles = (theme: AppTheme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  contentContainer: {
+    padding: theme.spacing.lg,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center' as const,
+    padding: theme.spacing.lg,
+  },
+  overallCard: {
+    marginBottom: theme.spacing.lg,
+  },
+  overallLabel: {
+    ...theme.typography.caption,
+    color: theme.colors.text.secondary,
+    textTransform: 'uppercase' as const,
+    marginBottom: theme.spacing.xs,
+  },
+  overallPct: {
+    ...theme.typography.h1,
+    color: theme.colors.accent,
+    fontWeight: '800' as const,
+  },
+  overallDetail: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: theme.colors.gray[200],
+    borderRadius: 3,
+    overflow: 'hidden' as const,
+  },
+  progressFill: {
+    height: '100%' as const,
+    backgroundColor: theme.colors.accent,
+    borderRadius: 3,
+    shadowColor: theme.colors.neon,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+  },
+  header: {
+    marginBottom: theme.spacing.md,
+  },
+  headerText: {
+    flex: 1,
+  },
+  title: {
+    ...theme.typography.h2,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.xs,
+  },
+  subtitle: {
+    ...theme.typography.body,
+    color: theme.colors.text.secondary,
+  },
+  actionRow: {
+    flexDirection: 'row' as const,
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+  },
+  actionButton: {
+    flex: 1,
+  },
+  emptyCard: {
+    alignItems: 'center' as const,
+    padding: theme.spacing['2xl'],
+  },
+  emptyTitle: {
+    ...theme.typography.h3,
+    color: theme.colors.text.primary,
+    fontWeight: '700' as const,
+    marginBottom: theme.spacing.md,
+    textAlign: 'center' as const,
+  },
+  emptyText: {
+    ...theme.typography.body,
+    color: theme.colors.text.secondary,
+    textAlign: 'center' as const,
+    marginBottom: theme.spacing.xl,
+  },
+  generateButton: {
+    width: '100%' as const,
+  },
+  weekCard: {
+    marginBottom: theme.spacing.lg,
+  },
+  revisedCard: {
+    borderWidth: 1,
+    borderColor: `${theme.colors.violet}55`,
+  },
+  weekHeader: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'flex-start' as const,
+    marginBottom: theme.spacing.md,
+  },
+  weekTitleContainer: {
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    flexWrap: 'wrap' as const,
+  },
+  weekTitle: {
+    ...theme.typography.h4,
+    color: theme.colors.text.primary,
+    fontWeight: '700' as const,
+    marginRight: theme.spacing.sm,
+  },
+  revisedBadge: {
+    backgroundColor: `${theme.colors.violet}18`,
+    borderWidth: 1,
+    borderColor: `${theme.colors.violet}55`,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.sm,
+  },
+  revisedBadgeText: {
+    ...theme.typography.caption,
+    color: theme.colors.violet,
+    fontWeight: '700' as const,
+  },
+  statusBadge: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.sm,
+  },
+  statusText: {
+    ...theme.typography.caption,
+    fontWeight: '700' as const,
+    textTransform: 'capitalize' as const,
+  },
+  estimatedHours: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+  },
+  resourcesTitle: {
+    ...theme.typography.body,
+    fontWeight: '700' as const,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+  },
+  resourcesContainer: {
+    gap: theme.spacing.sm,
+  },
+  resourceItem: {
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.ink,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  resourceCompleted: {
+    backgroundColor: `${theme.colors.teal}18`,
+    borderColor: `${theme.colors.teal}55`,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: theme.colors.gray[300],
+    marginRight: theme.spacing.sm,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  checkboxChecked: {
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
+  },
+  checkmark: {
+    color: theme.colors.ink,
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  resourceIcon: {
+    fontSize: 20,
+    marginRight: theme.spacing.sm,
+    marginTop: 2,
+  },
+  resourceContent: {
+    flex: 1,
+  },
+  resourceTitle: {
+    ...theme.typography.body,
+    fontWeight: '600' as const,
+    color: theme.colors.text.primary,
+    marginBottom: 4,
+  },
+  resourceType: {
+    ...theme.typography.caption,
+    color: theme.colors.text.secondary,
+    textTransform: 'capitalize' as const,
+  },
+  resourceLink: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.accent,
+    marginTop: theme.spacing.xs,
+    fontWeight: '700' as const,
+  },
+  noResources: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 5, 8, 0.88)',
+    justifyContent: 'center' as const,
+    padding: theme.spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: `${theme.colors.surface}F0`,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: `${theme.colors.accent}40`,
+    shadowColor: theme.colors.neon,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalPrompt: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.muted,
+    marginBottom: theme.spacing.md,
+  },
+  modalMiss: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.rose,
+    fontWeight: '600' as const,
+    marginBottom: theme.spacing.sm,
+  },
+  modalInput: {
+    minHeight: 120,
+    borderWidth: 1,
+    borderColor: `${theme.colors.accent}35`,
+    backgroundColor: `${theme.colors.ink}CC`,
+    borderRadius: theme.borderRadius.md,
+    color: theme.colors.cream,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    textAlignVertical: 'top' as const,
+  },
+  modalCancel: {
+    marginTop: 8,
+  },
+  cardTitle: {
+    ...theme.typography.h4,
+    color: theme.colors.cream,
+    fontWeight: '700' as const,
+    marginBottom: theme.spacing.md,
+  },
+});
+
 export const LearningPathScreen: React.FC<LearningPathScreenProps> = () => {
   const { refreshProgress } = useProgress();
+  const { theme } = useTheme();
+  const styles = useStyles(createStyles);
   const [learningPath, setLearningPath] = useState<LearningPathData | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [adapting, setAdapting] = useState(false);
   const [togglingProgress, setTogglingProgress] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [teachback, setTeachback] = useState<{
+    week_number: number;
+    resource_index: number;
+    prompt: string;
+    resource_title?: string;
+    miss?: string;
+  } | null>(null);
+  const [teachAnswer, setTeachAnswer] = useState('');
+  const [teachBusy, setTeachBusy] = useState(false);
 
   useEffect(() => {
     loadLearningPath();
@@ -109,53 +389,68 @@ export const LearningPathScreen: React.FC<LearningPathScreenProps> = () => {
     completed: boolean
   ) => {
     if (!learningPath) return;
+
+    if (completed) {
+      try {
+        const start = await api.post('/api/teachback/start', {
+          week_number: weekNumber,
+          resource_index: resourceIndex,
+        });
+        if (start.data.passed) {
+          await api.post('/api/learning-path/progress', {
+            week_number: weekNumber,
+            resource_index: resourceIndex,
+            completed: true,
+          });
+          await loadLearningPath();
+          refreshProgress().catch(() => {});
+          return;
+        }
+        setTeachAnswer('');
+        setTeachback(start.data);
+      } catch (error: any) {
+        Alert.alert('Teach-back', getApiErrorMessage(error, 'Could not start teach-back.'));
+      }
+      return;
+    }
+
     setTogglingProgress(true);
-
-    const previousPath = learningPath;
-    const optimisticPath: LearningPathData = {
-      ...learningPath,
-      weekly_paths: learningPath.weekly_paths.map((week) => {
-        if (week.week_number !== weekNumber) return week;
-        const indices = new Set(week.completed_resources || []);
-        if (completed) indices.add(resourceIndex);
-        else indices.delete(resourceIndex);
-        return {
-          ...week,
-          completed_resources: Array.from(indices).sort((a, b) => a - b),
-        };
-      }),
-    };
-    setLearningPath(optimisticPath);
-
     try {
-      const response = await api.post('/api/learning-path/progress', {
+      await api.post('/api/learning-path/progress', {
         week_number: weekNumber,
         resource_index: resourceIndex,
-        completed,
+        completed: false,
       });
-
-      setLearningPath((current) => {
-        if (!current) return current;
-        return {
-          ...current,
-          weekly_paths: current.weekly_paths.map((week) => {
-            const weekCompleted = response.data.completed
-              .filter((c: { week_number: number }) => c.week_number === week.week_number)
-              .map((c: { resource_index: number }) => c.resource_index);
-            return {
-              ...week,
-              completed_resources: weekCompleted,
-              status: response.data.week_status[week.week_number] || week.status,
-            };
-          }),
-        };
-      });
+      await loadLearningPath();
       refreshProgress().catch(() => {});
     } catch (error: any) {
-      setLearningPath(previousPath);
-      alert(getApiErrorMessage(error, 'Failed to update progress'));
+      Alert.alert('Error', getApiErrorMessage(error, 'Failed to update progress'));
     } finally {
       setTogglingProgress(false);
+    }
+  };
+
+  const submitTeachback = async () => {
+    if (!teachback) return;
+    setTeachBusy(true);
+    try {
+      const res = await api.post('/api/teachback/submit', {
+        week_number: teachback.week_number,
+        resource_index: teachback.resource_index,
+        answer: teachAnswer,
+      });
+      if (res.data.passed) {
+        setTeachback(null);
+        await loadLearningPath();
+        refreshProgress().catch(() => {});
+      } else {
+        setTeachback({ ...teachback, ...res.data });
+        Alert.alert('Try again', res.data.miss || 'Not quite — add more detail.');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', getApiErrorMessage(error, 'Teach-back failed.'));
+    } finally {
+      setTeachBusy(false);
     }
   };
 
@@ -190,7 +485,7 @@ export const LearningPathScreen: React.FC<LearningPathScreenProps> = () => {
       case 'completed':
         return theme.colors.success;
       case 'in_progress':
-        return theme.colors.info;
+        return theme.colors.accent;
       default:
         return theme.colors.text.secondary;
     }
@@ -356,215 +651,25 @@ export const LearningPathScreen: React.FC<LearningPathScreenProps> = () => {
       </View>
 
       {learningPath.weekly_paths.map(renderWeek)}
+      <Modal visible={Boolean(teachback)} animationType="slide" transparent>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.cardTitle}>Teach-back</Text>
+            <Text style={styles.modalPrompt}>{teachback?.prompt}</Text>
+            {teachback?.miss ? <Text style={styles.modalMiss}>{teachback.miss}</Text> : null}
+            <TextInput
+              style={styles.modalInput}
+              multiline
+              value={teachAnswer}
+              onChangeText={setTeachAnswer}
+              placeholder="Four short sentences…"
+              placeholderTextColor={theme.colors.muted}
+            />
+            <Button title={teachBusy ? 'Scoring...' : 'Submit explanation'} onPress={submitTeachback} loading={teachBusy} />
+            <Button title="Cancel" variant="secondary" onPress={() => setTeachback(null)} style={styles.modalCancel} />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  contentContainer: {
-    padding: theme.spacing.lg,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: theme.spacing.lg,
-  },
-  overallCard: {
-    marginBottom: theme.spacing.lg,
-  },
-  overallLabel: {
-    ...theme.typography.caption,
-    color: theme.colors.text.secondary,
-    textTransform: 'uppercase',
-    marginBottom: theme.spacing.xs,
-  },
-  overallPct: {
-    ...theme.typography.h1,
-    color: theme.colors.gold.DEFAULT,
-  },
-  overallDetail: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.sm,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: theme.colors.gray[200],
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: theme.colors.gold.DEFAULT,
-    borderRadius: 3,
-  },
-  header: {
-    marginBottom: theme.spacing.md,
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    ...theme.typography.h2,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
-  },
-  subtitle: {
-    ...theme.typography.body,
-    color: theme.colors.text.secondary,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.lg,
-  },
-  actionButton: {
-    flex: 1,
-  },
-  emptyCard: {
-    alignItems: 'center',
-    padding: theme.spacing['2xl'],
-  },
-  emptyTitle: {
-    ...theme.typography.h3,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
-    textAlign: 'center',
-  },
-  emptyText: {
-    ...theme.typography.body,
-    color: theme.colors.text.secondary,
-    textAlign: 'center',
-    marginBottom: theme.spacing.xl,
-  },
-  generateButton: {
-    width: '100%',
-  },
-  weekCard: {
-    marginBottom: theme.spacing.lg,
-  },
-  revisedCard: {
-    borderWidth: 1,
-    borderColor: theme.colors.gold.DEFAULT,
-  },
-  weekHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: theme.spacing.md,
-  },
-  weekTitleContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  weekTitle: {
-    ...theme.typography.h4,
-    color: theme.colors.text.primary,
-    marginRight: theme.spacing.sm,
-  },
-  revisedBadge: {
-    backgroundColor: theme.colors.gold.faint,
-    borderWidth: 1,
-    borderColor: theme.colors.gold.DEFAULT,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    borderRadius: theme.borderRadius.sm,
-  },
-  revisedBadgeText: {
-    ...theme.typography.caption,
-    color: theme.colors.gold.DEFAULT,
-    fontWeight: '600',
-  },
-  statusBadge: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    borderRadius: theme.borderRadius.sm,
-  },
-  statusText: {
-    ...theme.typography.caption,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  estimatedHours: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.sm,
-  },
-  resourcesTitle: {
-    ...theme.typography.body,
-    fontWeight: '600',
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
-    marginTop: theme.spacing.sm,
-  },
-  resourcesContainer: {
-    gap: theme.spacing.sm,
-  },
-  resourceItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.ink,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  resourceCompleted: {
-    backgroundColor: theme.colors.gold.faint,
-    borderColor: theme.colors.gold.DEFAULT,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: theme.colors.gray[300],
-    marginRight: theme.spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: theme.colors.gold.DEFAULT,
-    borderColor: theme.colors.gold.DEFAULT,
-  },
-  checkmark: {
-    color: theme.colors.ink,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  resourceIcon: {
-    fontSize: 20,
-    marginRight: theme.spacing.sm,
-    marginTop: 2,
-  },
-  resourceContent: {
-    flex: 1,
-  },
-  resourceTitle: {
-    ...theme.typography.body,
-    fontWeight: '500',
-    color: theme.colors.text.primary,
-    marginBottom: 4,
-  },
-  resourceType: {
-    ...theme.typography.caption,
-    color: theme.colors.text.secondary,
-    textTransform: 'capitalize',
-  },
-  resourceLink: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.gold.DEFAULT,
-    marginTop: theme.spacing.xs,
-    fontWeight: '600',
-  },
-  noResources: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.text.secondary,
-  },
-});

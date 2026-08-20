@@ -9,14 +9,14 @@ const ExplainabilityPanel = ({ explanations, title = 'Why this recommendation?' 
   }
 
   return (
-    <div className="rounded-2xl border border-line bg-surface2 p-5">
+    <div className="rounded-lg border border-line bg-surface2/80 p-5 transition-colors hover:border-accent/25">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center justify-between text-left"
       >
-        <span className="text-sm text-fg">{title}</span>
+        <span className="text-sm font-medium text-fg">{title}</span>
         {isExpanded ? (
-          <ChevronDown size={16} className="text-muted" />
+          <ChevronDown size={16} className="text-accent" />
         ) : (
           <ChevronRight size={16} className="text-muted" />
         )}
@@ -25,7 +25,8 @@ const ExplainabilityPanel = ({ explanations, title = 'Why this recommendation?' 
       {isExpanded && (
         <ul className="mt-4 pt-4 border-t border-line space-y-2">
           {explanations.map((explanation, index) => (
-            <li key={index} className="text-sm text-muted leading-relaxed">
+            <li key={index} className="text-sm text-muted leading-relaxed flex gap-2">
+              <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-accent" />
               {explanation}
             </li>
           ))}

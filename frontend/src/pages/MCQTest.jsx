@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import api, { getApiErrorMessage } from '../services/api';
 import LoadingSkeleton from '../components/ui/LoadingSkeleton';
@@ -10,6 +10,8 @@ const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 const MCQTest = () => {
   const { skillName } = useParams();
+  const [params] = useSearchParams();
+  const recert = params.get('recert') === '1';
   const navigate = useNavigate();
   const { error: toastError } = useToast();
   const [questions, setQuestions] = useState([]);
@@ -21,10 +23,10 @@ const MCQTest = () => {
   const [dir, setDir] = useState(1);
 
   useEffect(() => {
-    api.get(`/api/assessment/questions/${skillName}`)
+    api.get(`/api/assessment/questions/${skillName}${recert ? '?recert=true' : ''}`)
       .then((r) => setQuestions(r.data))
       .finally(() => setLoading(false));
-  }, [skillName]);
+  }, [skillName, recert]);
 
   useEffect(() => {
     const t = setInterval(() => setElapsed((s) => s + 1), 1000);
@@ -53,8 +55,9 @@ const MCQTest = () => {
   const submit = async () => {
     setSubmitting(true);
     try {
-      const response = await api.post('/api/assessment/submit', { skill_name: skillName, answers });
-      navigate('/assessment-result', { state: { result: response.data, elapsed } });
+      const endpoint = recert ? '/api/assessment/recert' : '/api/assessment/submit';
+      const response = await api.post(endpoint, { skill_name: skillName, answers });
+      navigate('/assessment-result', { state: { result: response.data, elapsed, recert } });
     } catch (err) {
       toastError(getApiErrorMessage(err, 'Failed to submit assessment.'));
     } finally {
@@ -63,7 +66,7 @@ const MCQTest = () => {
   };
 
   if (loading) return <LoadingSkeleton />;
-  if (!questions.length) return <div className="card">No questions for this skill.</div>;
+  if (!questions.length) return <div className="card panel-glow">No questions for this skill.</div>;
 
   const question = questions[current];
   const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
@@ -71,24 +74,27 @@ const MCQTest = () => {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <p className="page-kicker">{skillName}</p>
+      <p className="page-kicker">{recert ? `Recert · ${skillName}` : skillName}</p>
       <div className="mb-4 flex justify-between font-mono text-sm text-muted">
         <span>{current + 1} / {questions.length}</span>
-        <span className="tabular">{mins}:{secs}</span>
+        <span className="tabular text-accent">{mins}:{secs}</span>
       </div>
-      <div className="mb-6 h-1 rounded-full bg-line">
-        <div className="h-full rounded-full bg-gold" style={{ width: `${((current + 1) / questions.length) * 100}%` }} />
+      <div className="mb-6 h-1.5 rounded-full bg-line overflow-hidden">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-accent to-violet shadow-neon-sm transition-all duration-300"
+          style={{ width: `${((current + 1) / questions.length) * 100}%` }}
+        />
       </div>
       <AnimatePresence mode="wait">
         <motion.div
           key={question.id}
-          initial={{ opacity: 0, x: dir * 24 }}
+          initial={{ opacity: 0, x: dir * 32 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: dir * -24 }}
-          transition={{ duration: 0.35, ease: EASE }}
-          className="card"
+          exit={{ opacity: 0, x: dir * -32 }}
+          transition={{ duration: 0.25, ease: EASE }}
+          className="card panel-glow"
         >
-          <h2 className="font-serif text-2xl mb-6">{question.question_text}</h2>
+          <h2 className="text-2xl font-bold mb-6">{question.question_text}</h2>
           <div className="space-y-3">
             {question.options.map((option, i) => {
               const selected = answers[question.id] === option.id;
@@ -97,11 +103,13 @@ const MCQTest = () => {
                   key={option.id}
                   type="button"
                   onClick={() => setAnswers({ ...answers, [question.id]: option.id })}
-                  className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left ${
-                    selected ? 'border-gold bg-gold/10' : 'border-line hover:border-gold/40'
+                  className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left transition-all active:scale-[0.99] ${
+                    selected
+                      ? 'border-accent/60 bg-accent/10 shadow-neon-sm'
+                      : 'border-line hover:border-accent/40'
                   }`}
                 >
-                  <span className="font-mono text-gold">{LETTERS[i]}</span>
+                  <span className="font-mono font-semibold text-accent">{LETTERS[i]}</span>
                   {option.text}
                 </button>
               );

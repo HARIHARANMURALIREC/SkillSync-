@@ -2,51 +2,19 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, Assessment, SkillGap, LearningPath, LearningProgress
-from app.schemas import DashboardResponse, UserResponse, SkillRadarData, SkillGapResponse, CareerReadinessResponse, StreakResponse
+from app.schemas import DashboardResponse, UserResponse, SkillRadarData, SkillGapResponse, CareerReadinessResponse, StreakResponse, CareerForkResponse, FreshnessItem, WeeklyPlanItem, WeeklyPlanResponse
 from app.auth import get_current_user
 from app.streak import get_local_date, record_activity
-from app.ai.gap_analyzer import calculate_skill_gaps, get_skill_gap_summary, get_career_requirements
+from app.ai.gap_analyzer import calculate_skill_gaps, get_skill_gap_summary, get_career_requirements, compute_career_fork
 from app.ai.recommender import calculate_career_readiness
+from app.freshness import compute_freshness
+from app.ai.weekly_plan import generate_weekly_plan, monday_of
+from datetime import date
+from app.path_progress import compute_path_completion, path_summary
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 RESOURCE_LIMIT = 10
-
-
-def _compute_path_completion(db: Session, user_id: int) -> dict:
-    learning_paths = db.query(LearningPath).filter(LearningPath.user_id == user_id).all()
-    if not learning_paths:
-        return {
-            "path_completion_pct": 0.0,
-            "resources_completed": 0,
-            "total_resources": 0,
-        }
-
-    weeks_dict: dict = {}
-    for lp in learning_paths:
-        week_num = lp.week_number
-        if week_num not in weeks_dict:
-            weeks_dict[week_num] = {"resources": []}
-        weeks_dict[week_num]["resources"].extend(lp.resources or [])
-
-    completed_rows = db.query(LearningProgress).filter(LearningProgress.user_id == user_id).all()
-    completed = {(r.week_number, r.resource_index) for r in completed_rows}
-
-    total_resources = 0
-    resources_completed = 0
-    for week_num, week_data in weeks_dict.items():
-        resource_count = min(len(week_data["resources"]), RESOURCE_LIMIT)
-        total_resources += resource_count
-        resources_completed += sum(
-            1 for idx in range(resource_count) if (week_num, idx) in completed
-        )
-
-    overall_pct = round((resources_completed / total_resources) * 100, 1) if total_resources else 0.0
-    return {
-        "path_completion_pct": overall_pct,
-        "resources_completed": resources_completed,
-        "total_resources": total_resources,
-    }
 
 
 @router.get("", response_model=DashboardResponse)
@@ -101,7 +69,7 @@ def get_dashboard(
         for skill, level in user_skills.items()
     ]
 
-    path_completion = _compute_path_completion(db, current_user.id)
+    path_completion = compute_path_completion(db, current_user.id)
 
     progress_summary = {
         "total_assessments": len(assessments),
@@ -119,6 +87,34 @@ def get_dashboard(
         career_readiness = CareerReadinessResponse(**readiness_data)
 
     streak = record_activity(db, current_user.id, local_date)
+    career_fork = compute_career_fork(
+        user_skills,
+        current_user.career_goal,
+        current_user.hours_per_week or 10,
+    )
+    freshness = compute_freshness(db, current_user.id, user_skills)
+    stale = [f["skill_name"] for f in freshness if f.get("status") == "stale"]
+
+    weekly_plan_row = None
+    if current_user.career_goal or user_skills:
+        plan = generate_weekly_plan(
+            db,
+            current_user,
+            user_skills,
+            [g.model_dump() for g in skill_gaps] if skill_gaps else [],
+            path_summary(db, current_user.id),
+            stale,
+            monday_of(date.today()),
+        )
+        weekly_plan_row = WeeklyPlanResponse(
+            week_start=plan.week_start,
+            focus=plan.focus,
+            plan=[WeeklyPlanItem(**item) for item in (plan.plan_items or [])],
+            check_in=plan.check_in,
+            next_step=plan.next_step,
+            generated_at=plan.generated_at,
+        )
+
     db.commit()
 
     return DashboardResponse(
@@ -128,4 +124,7 @@ def get_dashboard(
         progress_summary=progress_summary,
         career_readiness=career_readiness,
         streak=StreakResponse(**streak),
+        career_fork=CareerForkResponse(**career_fork),
+        freshness=[FreshnessItem(**item) for item in freshness],
+        weekly_plan=weekly_plan_row,
     )

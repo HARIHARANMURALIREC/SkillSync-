@@ -255,3 +255,65 @@ def get_skill_gap_summary(gaps: list) -> dict:
         "total_gap_points": round(total_gap, 2),
         "average_gap": round(avg_gap, 2)
     }
+
+
+PRESET_ROLES = list(FALLBACK_REQUIREMENTS.keys())
+
+
+def compute_career_fork(user_skills: dict, current_goal: Optional[str], hours_per_week: int = 10) -> dict:
+    """Compare readiness across preset roles and name the cheaper adjacent pivot."""
+    skills = user_skills or {}
+    hours = max(int(hours_per_week or 10), 1)
+    role_rows = []
+
+    for role in PRESET_ROLES:
+        requirements = FALLBACK_REQUIREMENTS.get(role) or get_career_requirements(role)
+        readiness = _readiness_from_requirements(skills, requirements)
+        total_gap = round(sum(
+            max(0.0, float(target) - float(skills.get(name, 0.0)))
+            for name, target in requirements.items()
+        ), 2)
+        missing = sorted(
+            readiness.get("missing_skills") or [],
+            key=lambda item: item.get("gap", 0),
+            reverse=True,
+        )
+        role_rows.append({
+            "role": role,
+            "score": float(readiness.get("score") or 0),
+            "total_gap": total_gap,
+            "blocking_skills": [item["skill"] for item in missing[:3]],
+        })
+
+    current = next((row for row in role_rows if row["role"] == current_goal), None)
+    others = [row for row in role_rows if row["role"] != current_goal]
+    best = max(others, key=lambda row: (row["score"], -row["total_gap"])) if others else None
+
+    weeks_saved = 0.0
+    if current and best:
+        weeks_saved = round(max(0.0, current["total_gap"] - best["total_gap"]) / hours, 1)
+
+    if current and best and best["score"] > current["score"]:
+        message = (
+            f"You are {current['score']:.0f}% toward {current['role']}, but "
+            f"{best['score']:.0f}% toward {best['role']}. Switching saves about {weeks_saved:g} weeks."
+        )
+    elif current:
+        message = f"Stay on {current['role']} — it is already your strongest fit among the five roles."
+        best = current
+        weeks_saved = 0.0
+    elif best:
+        message = f"{best['role']} is the closest fit from your current scores."
+    else:
+        message = "Take assessments to see which role is the cheaper pivot."
+
+    return {
+        "current_role": current["role"] if current else current_goal,
+        "current_score": current["score"] if current else 0.0,
+        "best_adjacent": None if (best and current and best["role"] == current["role"]) else (best["role"] if best else None),
+        "best_score": best["score"] if best else 0.0,
+        "weeks_saved": weeks_saved,
+        "blocking_skills": (current or best or {}).get("blocking_skills") or [],
+        "message": message,
+        "roles": [{"role": row["role"], "score": row["score"]} for row in role_rows],
+    }

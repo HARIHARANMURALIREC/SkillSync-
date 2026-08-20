@@ -97,11 +97,28 @@ def chat_with_coach(
     skill_gaps: List[dict],
     messages: List[dict],
     path_summary: Optional[dict] = None,
+    db_history: Optional[List[dict]] = None,
+    weekly_plan_snippet: Optional[str] = None,
 ) -> str:
     """Run a coach chat turn with fresh context."""
     context = build_coach_context(user, user_skills, skill_gaps, path_summary)
+    if weekly_plan_snippet:
+        context += f"\n\nCURRENT WEEKLY PLAN:\n{weekly_plan_snippet}"
     system = coach_system_prompt(context)
 
+    merged: List[dict] = []
+    if db_history:
+        merged.extend(db_history[-12:])
     recent = messages[-10:] if len(messages) > 10 else messages
-    reply = chat_text(system=system, messages=recent, temperature=0.2, num_predict=1800)
+    if merged:
+        last_db = merged[-1] if merged else None
+        first_new = recent[0] if recent else None
+        if last_db and first_new and last_db.get("content") == first_new.get("content"):
+            recent = recent[1:]
+        merged.extend(recent)
+        chat_messages = merged[-14:]
+    else:
+        chat_messages = recent
+
+    reply = chat_text(system=system, messages=chat_messages, temperature=0.2, num_predict=1800)
     return _normalize_coach_reply(reply) or "I'm having trouble forming a response. Please try again."

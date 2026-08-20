@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { LoadingScreen } from '../components/LoadingScreen';
 import api from '../services/api';
-import { theme } from '../theme';
+import { AppTheme } from '../theme';
+import { useStyles } from '../theme/useStyles';
 
 interface MCQTestScreenProps {
   navigation: any;
   route: {
     params: {
       skillName: string;
+      recert?: boolean;
     };
   };
 }
@@ -22,8 +24,94 @@ interface Question {
   difficulty: number;
 }
 
+const createStyles = (theme: AppTheme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  progressContainer: {
+    height: 4,
+    backgroundColor: theme.colors.gray[200],
+    width: '100%' as const,
+  },
+  progressBar: {
+    height: '100%' as const,
+    backgroundColor: theme.colors.accent,
+    shadowColor: theme.colors.neon,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+  },
+  progressText: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: theme.spacing.lg,
+  },
+  questionCard: {
+    marginBottom: theme.spacing.lg,
+  },
+  questionText: {
+    ...theme.typography.h4,
+    color: theme.colors.text.primary,
+    fontWeight: '700' as const,
+    marginBottom: theme.spacing.xl,
+  },
+  optionsContainer: {
+    gap: theme.spacing.md,
+  },
+  option: {
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.ink,
+  },
+  optionSelected: {
+    borderColor: theme.colors.accent,
+    backgroundColor: `${theme.colors.accent}18`,
+    shadowColor: theme.colors.neon,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  optionText: {
+    ...theme.typography.body,
+    color: theme.colors.cream,
+  },
+  optionTextSelected: {
+    color: theme.colors.accent,
+    fontWeight: '700' as const,
+  },
+  navigationContainer: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    padding: theme.spacing.lg,
+    backgroundColor: theme.colors.ink,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    gap: theme.spacing.md,
+  },
+  navButton: {
+    flex: 1,
+  },
+  noQuestionsText: {
+    ...theme.typography.body,
+    color: theme.colors.text.secondary,
+    textAlign: 'center' as const,
+  },
+});
+
 export const MCQTestScreen: React.FC<MCQTestScreenProps> = ({ navigation, route }) => {
-  const { skillName } = route.params;
+  const { skillName, recert } = route.params;
+  const styles = useStyles(createStyles);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -36,7 +124,9 @@ export const MCQTestScreen: React.FC<MCQTestScreenProps> = ({ navigation, route 
 
   const fetchQuestions = async () => {
     try {
-      const response = await api.get(`/api/assessment/questions/${skillName}`);
+      const response = await api.get(
+        `/api/assessment/questions/${skillName}${recert ? '?recert=true' : ''}`
+      );
       setQuestions(response.data);
     } catch (error) {
       console.error('Failed to fetch questions:', error);
@@ -85,7 +175,8 @@ export const MCQTestScreen: React.FC<MCQTestScreenProps> = ({ navigation, route 
   const submitAnswers = async () => {
     setSubmitting(true);
     try {
-      const response = await api.post('/api/assessment/submit', {
+      const endpoint = recert ? '/api/assessment/recert' : '/api/assessment/submit';
+      const response = await api.post(endpoint, {
         skill_name: skillName,
         answers: Object.keys(answers).reduce((acc, questionId) => {
           acc[parseInt(questionId)] = answers[parseInt(questionId)];
@@ -96,6 +187,7 @@ export const MCQTestScreen: React.FC<MCQTestScreenProps> = ({ navigation, route 
       navigation.replace('AssessmentResult', {
         result: response.data,
         skillName,
+        recert: Boolean(recert),
       });
     } catch (error: any) {
       console.error('Failed to submit assessment:', error);
@@ -125,7 +217,6 @@ export const MCQTestScreen: React.FC<MCQTestScreenProps> = ({ navigation, route 
 
   return (
     <View style={styles.container}>
-      {/* Progress Bar */}
       <View style={styles.progressContainer}>
         <View style={[styles.progressBar, { width: `${progress}%` }]} />
       </View>
@@ -160,7 +251,6 @@ export const MCQTestScreen: React.FC<MCQTestScreenProps> = ({ navigation, route 
         </Card>
       </ScrollView>
 
-      {/* Navigation Buttons */}
       <View style={styles.navigationContainer}>
         <Button
           title="Previous"
@@ -188,79 +278,3 @@ export const MCQTestScreen: React.FC<MCQTestScreenProps> = ({ navigation, route 
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  progressContainer: {
-    height: 4,
-    backgroundColor: theme.colors.gray[200],
-    width: '100%',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: theme.colors.gold.DEFAULT,
-  },
-  progressText: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.text.secondary,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: theme.spacing.lg,
-  },
-  questionCard: {
-    marginBottom: theme.spacing.lg,
-  },
-  questionText: {
-    ...theme.typography.h4,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xl,
-  },
-  optionsContainer: {
-    gap: theme.spacing.md,
-  },
-  option: {
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.ink,
-  },
-  optionSelected: {
-    borderColor: theme.colors.gold.DEFAULT,
-    backgroundColor: theme.colors.gold.faint,
-  },
-  optionText: {
-    ...theme.typography.body,
-    color: theme.colors.cream,
-  },
-  optionTextSelected: {
-    color: theme.colors.gold.DEFAULT,
-    fontWeight: '600',
-  },
-  navigationContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: theme.spacing.lg,
-    backgroundColor: theme.colors.ink,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    gap: theme.spacing.md,
-  },
-  navButton: {
-    flex: 1,
-  },
-  noQuestionsText: {
-    ...theme.typography.body,
-    color: theme.colors.text.secondary,
-    textAlign: 'center',
-  },
-});
-

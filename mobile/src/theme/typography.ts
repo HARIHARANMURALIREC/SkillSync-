@@ -2,35 +2,35 @@ import { Platform } from 'react-native';
 
 export const fonts = {
   sans: Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' }),
-  serif: Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia' }),
+  mono: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
 };
 
 export const typography = {
   h1: {
     fontSize: 32,
-    fontWeight: '400' as const,
-    lineHeight: 40,
-    fontFamily: fonts.serif,
+    fontWeight: '700' as const,
+    lineHeight: 38,
+    fontFamily: fonts.sans,
     letterSpacing: -0.5,
   },
   h2: {
     fontSize: 24,
-    fontWeight: '400' as const,
-    lineHeight: 32,
-    fontFamily: fonts.serif,
+    fontWeight: '700' as const,
+    lineHeight: 30,
+    fontFamily: fonts.sans,
     letterSpacing: -0.3,
   },
   h3: {
     fontSize: 20,
-    fontWeight: '400' as const,
-    lineHeight: 28,
-    fontFamily: fonts.serif,
+    fontWeight: '700' as const,
+    lineHeight: 26,
+    fontFamily: fonts.sans,
   },
   h4: {
     fontSize: 18,
-    fontWeight: '500' as const,
+    fontWeight: '600' as const,
     lineHeight: 24,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
   },
   body: {
     fontSize: 16,
@@ -46,7 +46,7 @@ export const typography = {
   },
   caption: {
     fontSize: 12,
-    fontWeight: '400' as const,
+    fontWeight: '500' as const,
     lineHeight: 16,
     fontFamily: fonts.sans,
   },
@@ -58,11 +58,17 @@ export const typography = {
   },
   kicker: {
     fontSize: 12,
-    fontWeight: '500' as const,
+    fontWeight: '600' as const,
     lineHeight: 16,
     fontFamily: fonts.sans,
-    letterSpacing: 2.5,
+    letterSpacing: 2,
     textTransform: 'uppercase' as const,
+  },
+  mono: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    lineHeight: 24,
+    fontFamily: fonts.mono,
   },
 };
 

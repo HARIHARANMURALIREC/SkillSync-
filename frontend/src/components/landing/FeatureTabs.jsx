@@ -24,17 +24,22 @@ export default function FeatureTabs() {
             key={tab.id}
             type="button"
             onClick={() => setActive(tab.id)}
-            className={`w-full rounded-2xl border px-4 py-3 text-left ${
-              active === tab.id ? 'border-gold/40 bg-gold/10' : 'border-line bg-surface'
+            className={`relative w-full rounded-lg border px-4 py-3 text-left transition-all ${
+              active === tab.id
+                ? 'border-accent/50 bg-accent/10 shadow-neon-sm'
+                : 'border-line bg-surface hover:border-accent/30'
             }`}
           >
-            <span className="font-serif text-lg">{tab.title}</span>
+            {active === tab.id && (
+              <span className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-accent to-violet" />
+            )}
+            <span className="text-lg font-semibold">{tab.title}</span>
           </button>
         ))}
       </div>
-      <motion.div key={active} variants={fadeUp(reduce)} className="card">
-        <Icon className="mb-4 text-gold" />
-        <h3 className="font-serif text-2xl mb-3">{current.title}</h3>
+      <motion.div key={active} variants={fadeUp(reduce)} className="card panel-glow">
+        <Icon className="mb-4 text-accent" />
+        <h3 className="text-2xl font-bold mb-3">{current.title}</h3>
         <p className="text-muted leading-relaxed">{current.body}</p>
       </motion.div>
     </motion.div>

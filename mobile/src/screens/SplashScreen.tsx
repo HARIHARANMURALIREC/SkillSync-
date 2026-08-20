@@ -1,48 +1,20 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { theme } from '../theme';
+import { useTheme } from '../context/ThemeContext';
+import { AppTheme } from '../theme';
+import { useStyles } from '../theme/useStyles';
 
 interface SplashScreenProps {
   navigation: any;
 }
 
-export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
-  const { user, loading } = useAuth();
-
-  useEffect(() => {
-    if (!loading) {
-      const timer = setTimeout(() => {
-        if (user) {
-          navigation.replace('MainStack');
-        } else {
-          navigation.replace('Auth');
-        }
-      }, 1500);
-
-      return () => clearTimeout(timer);
-    }
-  }, [loading, user, navigation]);
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.logo}>SkillSync</Text>
-      <Text style={styles.tagline}>Your learning journey, personalized</Text>
-      <ActivityIndicator
-        size="small"
-        color={theme.colors.gold.DEFAULT}
-        style={styles.loader}
-      />
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => ({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.ink,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    backgroundColor: theme.colors.background,
   },
   logo: {
     ...theme.typography.h1,
@@ -57,3 +29,30 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xl,
   },
 });
+
+export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
+  const { user, loading } = useAuth();
+  const { theme } = useTheme();
+  const styles = useStyles(createStyles);
+
+  useEffect(() => {
+    if (!loading) {
+      const timer = setTimeout(() => {
+        if (user) {
+          navigation.replace('MainStack');
+        } else {
+          navigation.replace('Auth');
+        }
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, user, navigation]);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.logo}>SkillSync</Text>
+      <Text style={styles.tagline}>Close the gap to your next role</Text>
+      <ActivityIndicator size="small" color={theme.colors.accent} style={styles.loader} />
+    </View>
+  );
+};

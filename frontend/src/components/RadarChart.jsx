@@ -3,7 +3,7 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Responsi
 const SkillRadarChart = ({ data }) => {
   if (!data || data.length === 0) {
     return (
-      <div className="card text-center py-16">
+      <div className="card panel-glow text-center py-16">
         <p className="text-muted">Complete an assessment to see your skill radar.</p>
       </div>
     );
@@ -14,15 +14,15 @@ const SkillRadarChart = ({ data }) => {
     fullMark: 10,
   }));
   return (
-    <div className="card">
+    <div className="card panel-glow">
       <p className="section-label mb-2">Profile</p>
-      <h3 className="font-serif text-2xl mb-6">Skill radar</h3>
+      <h3 className="text-2xl font-bold mb-6">Skill radar</h3>
       <ResponsiveContainer width="100%" height={300}>
         <RadarChart data={chartData}>
           <PolarGrid stroke="rgb(var(--line))" />
           <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: 'rgb(var(--muted))' }} />
           <PolarRadiusAxis angle={90} domain={[0, 10]} tick={{ fontSize: 10, fill: 'rgb(var(--faint))' }} />
-          <Radar dataKey="level" stroke="rgb(var(--gold))" fill="rgb(var(--gold))" fillOpacity={0.28} />
+          <Radar dataKey="level" stroke="rgb(var(--accent))" fill="rgb(var(--accent))" fillOpacity={0.25} />
         </RadarChart>
       </ResponsiveContainer>
     </div>

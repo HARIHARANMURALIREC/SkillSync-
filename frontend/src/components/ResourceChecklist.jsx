@@ -18,15 +18,15 @@ const ResourceChecklist = ({
         return (
           <label
             key={index}
-            className={`flex items-start gap-3 p-3 rounded-2xl border transition-colors cursor-pointer ${
+            className={`flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
               isCompleted
-                ? 'border-gold/30 bg-gold/10'
-                : 'border-line hover:border-gold/30'
+                ? 'border-accent/40 bg-accent/10 shadow-neon-sm'
+                : 'border-line hover:border-accent/30'
             } ${disabled ? 'opacity-60 pointer-events-none' : ''}`}
           >
             <span
-              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
-                isCompleted ? 'bg-gold border-gold text-bg' : 'border-line'
+              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                isCompleted ? 'bg-accent border-accent text-bg shadow-neon-sm' : 'border-line'
               }`}
             >
               {isCompleted && <Check size={12} strokeWidth={3} />}
@@ -39,7 +39,7 @@ const ResourceChecklist = ({
               onChange={() => onToggle(weekNumber, index, !isCompleted)}
             />
             <div className="flex-1 min-w-0">
-              <p className={`text-sm ${isCompleted ? 'text-fg' : 'text-fg/90'}`}>
+              <p className={`text-sm font-medium ${isCompleted ? 'text-fg' : 'text-fg/90'}`}>
                 {resource.title}
               </p>
               <p className="text-xs text-muted capitalize mt-0.5">
@@ -50,7 +50,7 @@ const ResourceChecklist = ({
                   href={resource.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gold hover:text-gold-hover mt-2 inline-block break-all"
+                  className="text-sm text-accent hover:underline mt-2 inline-block break-all"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {resource.url.replace(/^https?:\/\//, '')}

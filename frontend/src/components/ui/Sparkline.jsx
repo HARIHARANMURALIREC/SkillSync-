@@ -1,4 +1,4 @@
-export default function Sparkline({ values = [], tone = 'gold' }) {
+export default function Sparkline({ values = [], tone = 'accent' }) {
   if (!values.length) return <div className="h-8" />;
   const max = Math.max(...values, 1);
   const min = Math.min(...values, 0);
@@ -10,11 +10,13 @@ export default function Sparkline({ values = [], tone = 'gold' }) {
     })
     .join(' ');
   const stroke = {
-    gold: 'rgb(var(--gold))',
+    gold: 'rgb(var(--accent))',
+    accent: 'rgb(var(--accent))',
     violet: 'rgb(var(--violet))',
     teal: 'rgb(var(--teal))',
     rose: 'rgb(var(--rose))',
-  }[tone];
+  }[tone] || 'rgb(var(--accent))';
+
   return (
     <svg viewBox="0 0 80 24" className="h-8 w-20">
       <polyline fill="none" stroke={stroke} strokeWidth="2" points={pts} />

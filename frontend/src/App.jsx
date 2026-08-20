@@ -16,10 +16,16 @@ import AssessmentResult from './pages/AssessmentResult';
 import LearningPath from './pages/LearningPath';
 import Profile from './pages/Profile';
 import CoachChat from './pages/CoachChat';
+import ReadinessReport, { ReadinessReportPublic } from './pages/ReadinessReport';
 import { EASE } from './hooks/useReducedMotion';
 
 const Page = ({ children }) => (
-  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.4, ease: EASE }}>
+  <motion.div
+    initial={{ opacity: 0, y: 16 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -8 }}
+    transition={{ duration: 0.25, ease: EASE }}
+  >
     {children}
   </motion.div>
 );
@@ -60,6 +66,11 @@ function AnimatedRoutes() {
           path="/coach"
           element={<ProtectedRoute><AppShell><Page><CoachChat /></Page></AppShell></ProtectedRoute>}
         />
+        <Route
+          path="/report"
+          element={<ProtectedRoute><AppShell><Page><ReadinessReport /></Page></AppShell></ProtectedRoute>}
+        />
+        <Route path="/r/:token" element={<Page><ReadinessReportPublic /></Page>} />
       </Routes>
     </AnimatePresence>
   );

@@ -59,11 +59,11 @@ const Profile = () => {
         <h1 className="page-title">Profile</h1>
       </div>
       <form onSubmit={save} className="space-y-8">
-        <div>
+        <div className="card panel-glow">
           <label className="label">Full name</label>
           <input className="input-field mt-2" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
         </div>
-        <div>
+        <div className="card panel-glow">
           <p className="label mb-3">Career goal</p>
           <div className="grid gap-3 sm:grid-cols-2">
             {GOALS.map((goal) => (
@@ -71,14 +71,18 @@ const Profile = () => {
                 key={goal}
                 type="button"
                 onClick={() => setForm({ ...form, career_goal: goal })}
-                className={`card text-left ${form.career_goal === goal ? 'border-gold' : ''}`}
+                className={`rounded-lg border p-4 text-left text-sm font-medium transition-all ${
+                  form.career_goal === goal
+                    ? 'border-accent/60 bg-accent/10 shadow-neon-sm text-fg'
+                    : 'border-line bg-elev hover:border-accent/30'
+                }`}
               >
                 {goal}
               </button>
             ))}
           </div>
         </div>
-        <div>
+        <div className="card panel-glow">
           <div className="flex justify-between">
             <label className="label">Hours per week</label>
             <span className="chip-gold">{pace(form.hours_per_week)} · {form.hours_per_week}h</span>
@@ -87,7 +91,7 @@ const Profile = () => {
             type="range"
             min="2"
             max="30"
-            className="mt-4 w-full accent-[rgb(var(--gold))]"
+            className="mt-4 w-full accent-[rgb(var(--accent))]"
             value={form.hours_per_week}
             onChange={(e) => setForm({ ...form, hours_per_week: Number(e.target.value) })}
           />

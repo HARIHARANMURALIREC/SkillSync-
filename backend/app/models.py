@@ -89,6 +89,23 @@ class UserActivity(Base):
     user = relationship("User")
 
 
+class TeachBack(Base):
+    __tablename__ = "teachbacks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    week_number = Column(Integer, nullable=False)
+    resource_index = Column(Integer, nullable=False)
+    prompt = Column(Text, nullable=False)
+    answer = Column(Text, nullable=True)
+    score = Column(Float, nullable=True)
+    feedback = Column(Text, nullable=True)
+    passed = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+
 class MCQQuestion(Base):
     __tablename__ = "mcq_questions"
     
@@ -99,4 +116,47 @@ class MCQQuestion(Base):
     correct_answer = Column(Integer, nullable=False)  # Index of correct option
     difficulty = Column(Integer, nullable=False)  # 1-5
     explanation = Column(Text, nullable=True)
+
+
+class ReadinessReport(Base):
+    __tablename__ = "readiness_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    share_token = Column(String, unique=True, index=True, nullable=False)
+    snapshot = Column(JSON, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User")
+
+
+class CoachMessage(Base):
+    __tablename__ = "coach_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    role = Column(String, nullable=False)  # user | assistant
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+
+class WeeklyPlan(Base):
+    __tablename__ = "weekly_plans"
+    __table_args__ = (
+        UniqueConstraint("user_id", "week_start", name="uq_weekly_plan_user_week"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    week_start = Column(String, nullable=False)  # YYYY-MM-DD (Monday)
+    focus = Column(Text, nullable=False)
+    plan_items = Column(JSON, nullable=False)  # [{skill, hours, action}]
+    check_in = Column(Text, nullable=False)
+    next_step = Column(Text, nullable=False)
+    generated_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
 

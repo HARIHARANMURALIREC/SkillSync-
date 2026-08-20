@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { theme } from '../theme';
+import { View, Text } from 'react-native';
+import { AppTheme } from '../theme';
+import { useStyles } from '../theme/useStyles';
 
 interface PageHeaderProps {
   kicker?: string;
@@ -8,21 +9,13 @@ interface PageHeaderProps {
   subtitle?: string;
 }
 
-export const PageHeader: React.FC<PageHeaderProps> = ({ kicker, title, subtitle }) => (
-  <View style={styles.container}>
-    {kicker && <Text style={styles.kicker}>{kicker}</Text>}
-    <Text style={styles.title}>{title}</Text>
-    {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
-  </View>
-);
-
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => ({
   container: {
     marginBottom: theme.spacing.lg,
   },
   kicker: {
     ...theme.typography.kicker,
-    color: theme.colors.gold.DEFAULT,
+    color: theme.colors.accent,
     marginBottom: theme.spacing.sm,
   },
   title: {
@@ -35,3 +28,14 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
 });
+
+export const PageHeader: React.FC<PageHeaderProps> = ({ kicker, title, subtitle }) => {
+  const styles = useStyles(createStyles);
+  return (
+    <View style={styles.container}>
+      {kicker && <Text style={styles.kicker}>{kicker}</Text>}
+      <Text style={styles.title}>{title}</Text>
+      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+    </View>
+  );
+};

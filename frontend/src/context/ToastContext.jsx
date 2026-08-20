@@ -29,10 +29,10 @@ export function ToastProvider({ children }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-card ${
+            className={`pointer-events-auto rounded-lg border px-4 py-3 text-sm backdrop-blur-xl shadow-panel ${
               toast.type === 'error'
-                ? 'border-danger/40 bg-surface text-danger'
-                : 'border-success/40 bg-surface text-success'
+                ? 'border-danger/40 bg-surface/95 text-danger'
+                : 'border-accent/40 bg-surface/95 text-success'
             }`}
           >
             {toast.message}

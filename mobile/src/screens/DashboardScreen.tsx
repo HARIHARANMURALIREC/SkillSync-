@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Share, Alert } from 'react-native';
 import { Card } from '../components/Card';
 import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/Button';
@@ -7,21 +7,247 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { StreakCard } from '../components/StreakCard';
 import { LevelCard } from '../components/LevelCard';
 import { BadgeGrid } from '../components/BadgeGrid';
-import api from '../services/api';
-import { theme } from '../theme';
+import { WeeklyFocusCard } from '../components/WeeklyFocusCard';
+import api, { createReadinessReport, getApiErrorMessage, publicReportUrl } from '../services/api';
+import { AppTheme } from '../theme';
+import { useStyles } from '../theme/useStyles';
 import { useProgress } from '../context/ProgressContext';
+import { useAuth } from '../context/AuthContext';
 import { AssessmentHistoryEntry, SkillInfo } from '../types';
 
 interface DashboardScreenProps {
   navigation: any;
 }
 
+const createStyles = (theme: AppTheme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  contentContainer: {
+    padding: theme.spacing.lg,
+  },
+  welcomeCard: {
+    marginBottom: theme.spacing.lg,
+  },
+  progressRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    marginBottom: theme.spacing.lg,
+  },
+  progressCard: {
+    flex: 1,
+    marginHorizontal: theme.spacing.xs,
+    alignItems: 'center' as const,
+  },
+  progressLabel: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.muted,
+    marginBottom: theme.spacing.xs,
+    textAlign: 'center' as const,
+  },
+  progressValue: {
+    ...theme.typography.h2,
+    color: theme.colors.accent,
+    fontWeight: '800' as const,
+  },
+  progressSub: {
+    ...theme.typography.caption,
+    color: theme.colors.text.secondary,
+    marginTop: 4,
+    textAlign: 'center' as const,
+  },
+  readinessCard: {
+    marginBottom: theme.spacing.lg,
+  },
+  cardTitle: {
+    ...theme.typography.h4,
+    color: theme.colors.cream,
+    fontWeight: '700' as const,
+    marginBottom: theme.spacing.md,
+  },
+  forkCard: {
+    marginBottom: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: `${theme.colors.violet}55`,
+    backgroundColor: `${theme.colors.violet}10`,
+  },
+  forkScores: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.violet,
+    fontWeight: '600' as const,
+    marginTop: theme.spacing.sm,
+  },
+  forkButton: {
+    marginTop: theme.spacing.md,
+  },
+  readinessContent: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+  },
+  readinessScoreContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: `${theme.colors.accent}18`,
+    borderWidth: 1,
+    borderColor: `${theme.colors.accent}55`,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    marginRight: theme.spacing.lg,
+  },
+  readinessScore: {
+    ...theme.typography.h1,
+    color: theme.colors.accent,
+    fontWeight: '800' as const,
+    fontSize: 28,
+  },
+  readinessStats: {
+    flex: 1,
+  },
+  readinessStat: {
+    ...theme.typography.h3,
+    color: theme.colors.text.primary,
+    fontWeight: '700' as const,
+    marginBottom: theme.spacing.xs,
+  },
+  readinessDescription: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+  },
+  actionsContainer: {
+    gap: theme.spacing.md,
+  },
+  actionButton: {
+    width: '100%' as const,
+  },
+  historyItem: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  historySkill: {
+    ...theme.typography.body,
+    fontWeight: '700' as const,
+    color: theme.colors.text.primary,
+  },
+  historyLevel: {
+    ...theme.typography.caption,
+    color: theme.colors.text.secondary,
+  },
+  historyScore: {
+    ...theme.typography.h4,
+    color: theme.colors.accent,
+    fontWeight: '700' as const,
+  },
+  gapItem: {
+    paddingVertical: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  gapHeader: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    marginBottom: theme.spacing.xs,
+  },
+  gapSkill: {
+    ...theme.typography.body,
+    fontWeight: '700' as const,
+    color: theme.colors.text.primary,
+    flex: 1,
+  },
+  priorityBadge: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.gray[100],
+  },
+  priorityHigh: {
+    backgroundColor: `${theme.colors.rose}18`,
+    borderWidth: 1,
+    borderColor: `${theme.colors.rose}55`,
+  },
+  priorityMedium: {
+    backgroundColor: theme.colors.gray[100],
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  priorityText: {
+    ...theme.typography.caption,
+    fontWeight: '700' as const,
+    color: theme.colors.cream,
+  },
+  gapText: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.text.secondary,
+  },
+  assessLink: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.accent,
+    fontWeight: '700' as const,
+    marginTop: theme.spacing.sm,
+  },
+  freshnessRow: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: theme.spacing.sm,
+  },
+  freshnessChip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    marginBottom: theme.spacing.xs,
+  },
+  freshnessFresh: {
+    borderColor: `${theme.colors.accent}55`,
+    backgroundColor: `${theme.colors.accent}18`,
+  },
+  freshnessAging: {
+    borderColor: `${theme.colors.amber}55`,
+    backgroundColor: `${theme.colors.amber}18`,
+  },
+  freshnessStale: {
+    borderColor: `${theme.colors.rose}55`,
+    backgroundColor: `${theme.colors.rose}18`,
+  },
+  freshnessDefault: {
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface2,
+  },
+  freshnessTextFresh: {
+    color: theme.colors.accent,
+  },
+  freshnessTextAging: {
+    color: theme.colors.amber,
+  },
+  freshnessTextStale: {
+    color: theme.colors.rose,
+  },
+  freshnessTextDefault: {
+    color: theme.colors.muted,
+  },
+  freshnessChipText: {
+    ...theme.typography.bodySmall,
+    fontWeight: '600' as const,
+    textTransform: 'capitalize' as const,
+  },
+});
+
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const { summary: dashboardData, streakDays, heat, badges, level, refreshProgress } = useProgress();
+  const { setUser } = useAuth();
+  const styles = useStyles(createStyles);
+  const [switching, setSwitching] = useState(false);
   const [history, setHistory] = useState<AssessmentHistoryEntry[]>([]);
   const [assessableSkills, setAssessableSkills] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [sharingReport, setSharingReport] = useState(false);
 
   useEffect(() => {
     fetchDashboard();
@@ -47,6 +273,49 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
   const onRefresh = () => {
     setRefreshing(true);
     fetchDashboard();
+  };
+
+  const shareReport = async () => {
+    setSharingReport(true);
+    try {
+      const data = await createReadinessReport();
+      const url = publicReportUrl(data.share_path);
+      await Share.share({
+        message: `My SkillSync job-readiness report: ${url}`,
+        url,
+        title: 'Job-readiness report',
+      });
+    } catch (err) {
+      Alert.alert('Share failed', getApiErrorMessage(err, 'Could not generate report.'));
+    } finally {
+      setSharingReport(false);
+    }
+  };
+
+  const getFreshnessChipStyle = (status: string) => {
+    switch (status) {
+      case 'fresh':
+        return styles.freshnessFresh;
+      case 'aging':
+        return styles.freshnessAging;
+      case 'stale':
+        return styles.freshnessStale;
+      default:
+        return styles.freshnessDefault;
+    }
+  };
+
+  const getFreshnessTextStyle = (status: string) => {
+    switch (status) {
+      case 'fresh':
+        return styles.freshnessTextFresh;
+      case 'aging':
+        return styles.freshnessTextAging;
+      case 'stale':
+        return styles.freshnessTextStale;
+      default:
+        return styles.freshnessTextDefault;
+    }
   };
 
   if (loading) {
@@ -79,6 +348,65 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
 
       <LevelCard level={level} />
       <StreakCard days={streakDays} heat={heat} />
+
+      {dashboardData?.weekly_plan ? (
+        <WeeklyFocusCard
+          plan={dashboardData.weekly_plan}
+          onAskCoach={(starter) => navigation.navigate('Coach', { starter })}
+        />
+      ) : null}
+
+      {dashboardData?.career_fork?.message ? (
+        <Card style={styles.forkCard}>
+          <Text style={styles.cardTitle}>Career fork</Text>
+          <Text style={styles.readinessDescription}>{dashboardData.career_fork.message}</Text>
+          <Text style={styles.forkScores}>
+            {dashboardData.career_fork.current_role || 'Current'}: {dashboardData.career_fork.current_score.toFixed(0)}%
+            {dashboardData.career_fork.best_adjacent
+              ? `  ·  ${dashboardData.career_fork.best_adjacent}: ${dashboardData.career_fork.best_score.toFixed(0)}%`
+              : ''}
+          </Text>
+          {dashboardData.career_fork.best_adjacent &&
+            dashboardData.career_fork.best_adjacent !== dashboardData.career_fork.current_role && (
+              <Button
+                title={switching ? 'Switching...' : `Switch to ${dashboardData.career_fork.best_adjacent}`}
+                onPress={async () => {
+                  const goal = dashboardData.career_fork?.best_adjacent;
+                  if (!goal) return;
+                  setSwitching(true);
+                  try {
+                    const res = await api.put('/api/profile', { career_goal: goal });
+                    setUser(res.data);
+                    await refreshProgress();
+                  } finally {
+                    setSwitching(false);
+                  }
+                }}
+                style={styles.forkButton}
+              />
+            )}
+        </Card>
+      ) : null}
+
+      {(dashboardData?.freshness || []).length > 0 && (
+        <Card>
+          <Text style={styles.cardTitle}>Skill freshness</Text>
+          <View style={styles.freshnessRow}>
+            {(dashboardData?.freshness || []).map((item) => (
+              <TouchableOpacity
+                key={item.skill_name}
+                onPress={() => navigation.navigate('MCQTest', { skillName: item.skill_name, recert: true })}
+              >
+                <View style={[styles.freshnessChip, getFreshnessChipStyle(item.status)]}>
+                  <Text style={[styles.freshnessChipText, getFreshnessTextStyle(item.status)]}>
+                    {item.skill_name} · {item.status}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card>
+      )}
 
       <View style={styles.progressRow}>
         <Card style={styles.progressCard}>
@@ -163,6 +491,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             variant="secondary"
             style={styles.actionButton}
           />
+          <Button
+            title={sharingReport ? 'Generating…' : 'Share readiness report'}
+            onPress={shareReport}
+            variant="secondary"
+            style={styles.actionButton}
+            disabled={sharingReport}
+          />
         </View>
       </Card>
 
@@ -217,156 +552,3 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
     </ScrollView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  contentContainer: {
-    padding: theme.spacing.lg,
-  },
-  welcomeCard: {
-    marginBottom: theme.spacing.lg,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.lg,
-  },
-  progressCard: {
-    flex: 1,
-    marginHorizontal: theme.spacing.xs,
-    alignItems: 'center',
-  },
-  progressLabel: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.muted,
-    marginBottom: theme.spacing.xs,
-    textAlign: 'center',
-  },
-  progressValue: {
-    ...theme.typography.h2,
-    color: theme.colors.gold.DEFAULT,
-  },
-  progressSub: {
-    ...theme.typography.caption,
-    color: theme.colors.text.secondary,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  readinessCard: {
-    marginBottom: theme.spacing.lg,
-  },
-  cardTitle: {
-    ...theme.typography.h4,
-    color: theme.colors.cream,
-    marginBottom: theme.spacing.md,
-  },
-  readinessContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  readinessScoreContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: theme.colors.gold.faint,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: theme.spacing.lg,
-  },
-  readinessScore: {
-    ...theme.typography.h1,
-    color: theme.colors.gold.DEFAULT,
-  },
-  readinessStats: {
-    flex: 1,
-  },
-  readinessStat: {
-    ...theme.typography.h3,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
-  },
-  readinessDescription: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.text.secondary,
-  },
-  actionsContainer: {
-    gap: theme.spacing.md,
-  },
-  actionButton: {
-    width: '100%',
-  },
-  historyItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  historySkill: {
-    ...theme.typography.body,
-    fontWeight: '600',
-    color: theme.colors.text.primary,
-  },
-  historyLevel: {
-    ...theme.typography.caption,
-    color: theme.colors.text.secondary,
-  },
-  historyScore: {
-    ...theme.typography.h4,
-    color: theme.colors.primary[800],
-  },
-  gapItem: {
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  gapHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.xs,
-  },
-  gapSkill: {
-    ...theme.typography.body,
-    fontWeight: '600',
-    color: theme.colors.text.primary,
-    flex: 1,
-  },
-  priorityBadge: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.gray[100],
-  },
-  priorityHigh: {
-    backgroundColor: theme.colors.gold.faint,
-    borderWidth: 1,
-    borderColor: theme.colors.gold.DEFAULT,
-  },
-  priorityMedium: {
-    backgroundColor: theme.colors.gray[100],
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  priorityText: {
-    ...theme.typography.caption,
-    fontWeight: '600',
-    color: theme.colors.cream,
-  },
-  gapText: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.text.secondary,
-  },
-  assessLink: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.gold.DEFAULT,
-    fontWeight: '600',
-    marginTop: theme.spacing.sm,
-  },
-});

@@ -7,7 +7,7 @@ export default function Confetti({ fire }) {
 
   useEffect(() => {
     if (!fire || reduce) return undefined;
-    const colors = ['rgb(var(--gold))', 'rgb(var(--violet))', 'rgb(var(--teal))', 'rgb(var(--rose))'];
+    const colors = ['rgb(var(--accent))', 'rgb(var(--violet))', 'rgb(var(--rose))', 'rgb(var(--teal))'];
     setBits(
       Array.from({ length: 28 }).map((_, i) => ({
         id: i,
@@ -30,7 +30,8 @@ export default function Confetti({ fire }) {
           style={{
             left: `${b.left}%`,
             background: b.color,
-            animation: `aurora-drift 1.2s ${b.delay}s ease-out both`,
+            boxShadow: `0 0 6px ${b.color}`,
+            animation: `mesh-drift 1.2s ${b.delay}s ease-out both`,
           }}
         />
       ))}

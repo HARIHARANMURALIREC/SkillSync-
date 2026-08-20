@@ -23,10 +23,10 @@ const Login = () => {
 
   return (
     <AuthShell kicker="Welcome back" title="Continue where you" accent="left off.">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-5">
-        <Link to="/" className="lg:hidden font-serif text-xl mb-4 inline-block">SkillSync</Link>
-        <h2 className="font-serif text-3xl">Sign in</h2>
-        {error && <div className="animate-shake rounded-2xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <Link to="/" className="lg:hidden font-display text-xl font-bold mb-4 inline-block">SkillSync</Link>
+        <h2 className="text-2xl font-bold">Sign in</h2>
+        {error && <div className="animate-shake rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
         <div>
           <label className="label">Email</label>
           <input className="input-field mt-2" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -36,7 +36,7 @@ const Login = () => {
           <input className="input-field mt-2" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
         <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? 'Signing in…' : 'Sign in'}</button>
-        <p className="text-sm text-muted">No account? <Link to="/signup" className="text-gold">Create one</Link></p>
+        <p className="text-sm text-muted">No account? <Link to="/signup" className="text-accent hover:underline">Create one</Link></p>
       </form>
     </AuthShell>
   );

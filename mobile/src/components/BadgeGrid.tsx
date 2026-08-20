@@ -1,10 +1,51 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { Card } from './Card';
-import { theme } from '../theme';
+import { AppTheme } from '../theme';
+import { useStyles } from '../theme/useStyles';
 import { BadgeInfo } from '../lib/gamification';
 
+const createStyles = (theme: AppTheme) => ({
+  kicker: {
+    ...theme.typography.kicker,
+    color: theme.colors.muted,
+    marginBottom: theme.spacing.md,
+  },
+  grid: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: theme.spacing.sm,
+  },
+  item: {
+    width: '48%' as const,
+    flexGrow: 1,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    padding: theme.spacing.sm,
+  },
+  unlocked: {
+    borderColor: `${theme.colors.accent}66`,
+    backgroundColor: `${theme.colors.accent}18`,
+  },
+  locked: {
+    borderColor: theme.colors.border,
+    opacity: 0.45,
+  },
+  name: {
+    ...theme.typography.bodySmall,
+    fontWeight: '600' as const,
+    color: theme.colors.cream,
+  },
+  hint: {
+    ...theme.typography.caption,
+    color: theme.colors.muted,
+    marginTop: 4,
+  },
+});
+
 export function BadgeGrid({ badges = [] }: { badges?: BadgeInfo[] }) {
+  const styles = useStyles(createStyles);
+
   return (
     <Card>
       <Text style={styles.kicker}>Badges</Text>
@@ -22,41 +63,3 @@ export function BadgeGrid({ badges = [] }: { badges?: BadgeInfo[] }) {
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  kicker: {
-    ...theme.typography.kicker,
-    color: theme.colors.muted,
-    marginBottom: theme.spacing.md,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-  },
-  item: {
-    width: '48%',
-    flexGrow: 1,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    padding: theme.spacing.sm,
-  },
-  unlocked: {
-    borderColor: 'rgba(200, 169, 106, 0.4)',
-    backgroundColor: theme.colors.gold.faint,
-  },
-  locked: {
-    borderColor: theme.colors.border,
-    opacity: 0.5,
-  },
-  name: {
-    ...theme.typography.bodySmall,
-    fontWeight: '600',
-    color: theme.colors.cream,
-  },
-  hint: {
-    ...theme.typography.caption,
-    color: theme.colors.muted,
-    marginTop: 4,
-  },
-});

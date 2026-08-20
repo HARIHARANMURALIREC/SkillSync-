@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Dict, List, Set, Tuple
 from app.database import get_db
-from app.models import User, Assessment, LearningPath, LearningProgress
+from app.models import User, Assessment, LearningPath, LearningProgress, TeachBack
 from app.schemas import (
     LearningPathResponse,
     WeeklyLearningPath,
@@ -357,6 +357,22 @@ def toggle_progress(
     ).first()
 
     if toggle.completed:
+        passed = db.query(TeachBack).filter(
+            TeachBack.user_id == current_user.id,
+            TeachBack.week_number == toggle.week_number,
+            TeachBack.resource_index == toggle.resource_index,
+            TeachBack.passed.is_(True),
+        ).first()
+        if not passed:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "needs_teachback": True,
+                    "week_number": toggle.week_number,
+                    "resource_index": toggle.resource_index,
+                    "message": "Explain this resource before it counts as complete.",
+                },
+            )
         if not existing:
             db.add(LearningProgress(
                 user_id=current_user.id,

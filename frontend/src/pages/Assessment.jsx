@@ -6,9 +6,16 @@ import LoadingSkeleton from '../components/ui/LoadingSkeleton';
 import EmptyState from '../components/ui/EmptyState';
 
 const barTone = (score) => {
-  if (score >= 7.5) return 'bg-teal';
-  if (score >= 4.5) return 'bg-gold';
-  return 'bg-violet';
+  if (score >= 7.5) return 'bg-teal shadow-[0_0_8px_rgb(var(--teal)/0.5)]';
+  if (score >= 4.5) return 'bg-accent shadow-neon-sm';
+  return 'bg-violet shadow-[0_0_8px_rgb(var(--violet)/0.4)]';
+};
+
+const freshnessChip = (status) => {
+  if (status === 'stale') return 'border-rose/40 bg-rose/10 text-rose shadow-[0_0_8px_rgb(var(--rose)/0.3)]';
+  if (status === 'aging') return 'border-amber/40 bg-amber/10 text-amber';
+  if (status === 'fresh') return 'border-accent/40 bg-accent/10 text-accent';
+  return '';
 };
 
 const Assessment = () => {
@@ -53,24 +60,33 @@ const Assessment = () => {
     return (
       <button
         type="button"
-        className="card card-hover text-left"
-        onClick={() => navigate(`/assessment/${encodeURIComponent(skill.name)}`)}
+        className="card card-hover panel-glow text-left"
+        onClick={() =>
+          navigate(
+            `/assessment/${encodeURIComponent(skill.name)}${skill.freshness === 'stale' ? '?recert=1' : ''}`
+          )
+        }
       >
         <div className="flex items-start justify-between gap-3">
-          <h3 className="font-serif text-xl">{skill.name}</h3>
+          <h3 className="text-xl font-bold">{skill.name}</h3>
           {skill.recommended && <span className="chip-gold">For your goal</span>}
         </div>
         <p className="mt-2 text-sm text-muted">{skill.question_count} questions</p>
         {prev && (
           <div className="mt-4">
             <span className="chip-muted">{prev.level}</span>
-            <div className="mt-2 h-1.5 rounded-full bg-line">
+            {skill.freshness && (
+              <span className={`ml-2 chip ${freshnessChip(skill.freshness)}`}>
+                {skill.freshness}
+              </span>
+            )}
+            <div className="mt-2 h-1.5 rounded-full bg-line overflow-hidden">
               <div className={`h-full rounded-full ${barTone(prev.score)}`} style={{ width: `${prev.score * 10}%` }} />
             </div>
           </div>
         )}
-        <span className="mt-5 inline-flex items-center gap-2 text-sm text-gold">
-          <Play size={14} /> {prev ? 'Reassess' : 'Start'}
+        <span className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-accent">
+          <Play size={14} /> {skill.freshness === 'stale' ? 'Recert now' : prev ? 'Reassess' : 'Start'}
         </span>
       </button>
     );

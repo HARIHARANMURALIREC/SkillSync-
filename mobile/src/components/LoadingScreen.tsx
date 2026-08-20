@@ -1,21 +1,24 @@
 import React from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { theme } from '../theme';
+import { View, ActivityIndicator } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
+import { AppTheme } from '../theme';
+import { useStyles } from '../theme/useStyles';
 
-export const LoadingScreen: React.FC = () => {
-  return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color={theme.colors.gold.DEFAULT} />
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => ({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
     backgroundColor: theme.colors.background,
   },
 });
 
+export const LoadingScreen: React.FC = () => {
+  const { theme } = useTheme();
+  const styles = useStyles(createStyles);
+  return (
+    <View style={styles.container}>
+      <ActivityIndicator size="large" color={theme.colors.accent} />
+    </View>
+  );
+};

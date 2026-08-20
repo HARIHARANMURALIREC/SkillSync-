@@ -17,7 +17,7 @@ const SkillGapTable = ({ gaps }) => {
 
   if (!gaps || gaps.length === 0) {
     return (
-      <div className="card text-center py-16">
+      <div className="card panel-glow text-center py-16">
         <p className="text-muted">Set your career goal to see skill gaps.</p>
       </div>
     );
@@ -26,20 +26,20 @@ const SkillGapTable = ({ gaps }) => {
   const getPriorityClass = (priority) => {
     switch (priority) {
       case 'High':
-        return 'text-gold border-gold/40';
+        return 'text-rose border-rose/40 bg-rose/10';
       case 'Medium':
-        return 'text-fg/80 border-line';
+        return 'text-amber border-amber/40 bg-amber/10';
       case 'Low':
-        return 'text-muted border-white/10';
+        return 'text-muted border-line bg-surface2';
       default:
-        return 'text-muted border-white/10';
+        return 'text-muted border-line';
     }
   };
 
   return (
-    <div className="card overflow-hidden">
-      <p className="text-xs uppercase tracking-wider text-muted mb-2">Focus</p>
-      <h3 className="font-serif text-2xl mb-6">Skill gaps</h3>
+    <div className="card panel-glow overflow-hidden">
+      <p className="section-label mb-2">Focus</p>
+      <h3 className="text-2xl font-bold mb-6">Skill gaps</h3>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -47,7 +47,7 @@ const SkillGapTable = ({ gaps }) => {
               {['Skill', 'Current', 'Target', 'Gap', 'Priority'].map((h) => (
                 <th
                   key={h}
-                  className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider"
+                  className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider"
                 >
                   {h}
                 </th>
@@ -58,30 +58,30 @@ const SkillGapTable = ({ gaps }) => {
             {gaps.map((gap, index) => (
               <React.Fragment key={index}>
                 <tr
-                  className="border-b border-line/60 hover:bg-surface2 cursor-pointer"
+                  className="border-b border-line/60 hover:bg-surface2/80 cursor-pointer transition-colors"
                   onClick={() => setExpandedSkill(expandedSkill === index ? null : index)}
                 >
-                  <td className="px-3 py-4 text-sm text-fg">{gap.skill_name}</td>
-                  <td className="px-3 py-4 text-sm text-muted">{gap.current_level.toFixed(1)}</td>
-                  <td className="px-3 py-4 text-sm text-muted">{gap.target_level.toFixed(1)}</td>
-                  <td className="px-3 py-4 text-sm text-fg">
+                  <td className="px-3 py-4 text-sm font-medium text-fg">{gap.skill_name}</td>
+                  <td className="px-3 py-4 text-sm text-muted font-mono tabular">{gap.current_level.toFixed(1)}</td>
+                  <td className="px-3 py-4 text-sm text-muted font-mono tabular">{gap.target_level.toFixed(1)}</td>
+                  <td className="px-3 py-4 text-sm text-accent font-mono tabular">
                     {gap.gap > 0 ? `+${gap.gap.toFixed(1)}` : gap.gap.toFixed(1)}
                   </td>
                   <td className="px-3 py-4">
-                    <span className={`px-2 py-0.5 text-xs rounded-full border ${getPriorityClass(gap.priority)}`}>
+                    <span className={`px-2 py-0.5 text-xs rounded-full border font-medium ${getPriorityClass(gap.priority)}`}>
                       {gap.priority}
                     </span>
                   </td>
                 </tr>
                 {expandedSkill === index && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-4 bg-gold/10">
+                    <td colSpan={5} className="px-3 py-4 bg-accent/5 border-l-2 border-accent">
                       {gap.explanation && gap.explanation.length > 0 && (
                         <>
-                          <p className="text-xs uppercase tracking-wider text-gold mb-2">Why this gap</p>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-accent mb-2">Why this gap</p>
                           <ul className="space-y-1 mb-4">
                             {gap.explanation.map((exp, expIdx) => (
-                              <li key={expIdx} className="text-sm text-fg/80">
+                              <li key={expIdx} className="text-sm text-muted">
                                 {exp}
                               </li>
                             ))}
